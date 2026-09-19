@@ -23,6 +23,12 @@ from core.localization import (
 from core.tie_aware_localization import (
     evaluate_tie_aware_localization
 )
+from core.severity_experiment import (
+    generate_shifted_fuzzy_sets,
+    calculate_similarity_experiment,
+    evaluate_thresholds,
+    evaluate_generated_rule_pairs
+)
 
 # -----------------------------------------
 # FUZZY SETS
@@ -987,3 +993,116 @@ for case in tie_aware_metrics["case_results"]:
         "| correct =", case["correct_in_candidate_set"],
         "| ambiguous =", case["ambiguous"]
     )
+    print("\nControlled Similarity Experiment")
+print("--------------------------------------------")
+
+base_set = TriangularFuzzySet(
+    "base",
+    20,
+    40,
+    60
+)
+
+shifts = [
+    -20,
+    -15,
+    -10,
+    -5,
+    0,
+    5,
+    10,
+    15,
+    20
+]
+
+shifted_sets = generate_shifted_fuzzy_sets(
+    base_set,
+    shifts
+)
+
+similarity_results = calculate_similarity_experiment(
+    base_set,
+    shifted_sets,
+    0,
+    100
+)
+
+print("\nMeasured fuzzy-set similarity")
+
+for result in similarity_results:
+    print(
+        result["set"],
+        "| shift =",
+        round(result["a"] - base_set.a, 2),
+        "| similarity =",
+        result["similarity"]
+    )
+
+thresholds = [
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.9
+]
+
+threshold_evaluations = evaluate_thresholds(
+    similarity_results,
+    thresholds
+)
+
+print("\nThreshold detection")
+
+for threshold in thresholds:
+    print(
+        "\nThreshold:",
+        threshold
+    )
+
+    for evaluation in threshold_evaluations:
+        if evaluation["threshold"] == threshold:
+            print(
+                "  ",
+                evaluation["set"],
+                "| similarity =",
+                evaluation["similarity"],
+                "| detected =",
+                evaluation["detected"]
+            )
+print("--------------------------------------------")
+# Step 32: Controlled Similarity Experiment
+
+# ... your existing Step 32 code ...
+
+# Actual Rule-Pair Verification Experiment
+print("\nActual Rule-Pair Verification Experiment")
+print("--------------------------------------------")
+
+rule_pair_results = evaluate_generated_rule_pairs(
+    base_set,
+    shifted_sets,
+    0,
+    100,
+    thresholds
+)
+
+for threshold in thresholds:
+    print(
+        "\nThreshold:",
+        threshold
+    )
+
+    for result in rule_pair_results:
+        if result["threshold"] == threshold:
+            print(
+                "  ",
+                result["set"],
+                "| shift =",
+                result["shift"],
+                "| similarity =",
+                result["similarity"],
+                "| conflict =",
+                result["conflict_score"],
+                "| detected =",
+                result["detected"]
+            )
