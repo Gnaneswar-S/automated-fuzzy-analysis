@@ -2,7 +2,9 @@ from collections import defaultdict
 from core.verification import verify_rule_base
 from core.fuzzy_sets import TriangularFuzzySet
 from core.rules import FuzzyRule
-from core.diagnosis import diagnose_conflicts
+from core.diagnosis import (
+    diagnose_conflicts as diagnose_explainable_conflicts
+)
 from core.repair import generate_repair_candidates
 from core.repair_engine import evaluate_repair_candidate
 from core.ranking import rank_repair_candidates
@@ -32,7 +34,9 @@ from core.severity_experiment import (
 from core.defect_severity_experiment import (
     evaluate_defect_severity
 )
-
+from core.conflict_diagnosis import (
+    diagnose_conflicts as diagnose_activation_conflicts
+)
 # -----------------------------------------
 # FUZZY SETS
 # -----------------------------------------
@@ -160,6 +164,7 @@ result = verify_rule_base(
     consistency_threshold=0.7,
     completeness_resolution=100
 )
+verification_result = result
 
 
 # -----------------------------------------
@@ -313,7 +318,7 @@ else:
 # EXPLAINABLE DIAGNOSIS
 # -----------------------------------------
 
-diagnoses = diagnose_conflicts(
+diagnoses = diagnose_explainable_conflicts(
     rules,
     result["consistency"]["conflicts"],
     regions
@@ -1154,3 +1159,46 @@ for result in severity_results:
         "| status =",
         result["overall_status"]
     )
+print("\nActivation-Aware Conflict Diagnosis")
+print("--------------------------------------------")
+
+conflicts = verification_result["consistency"]["conflicts"]
+
+diagnoses = diagnose_activation_conflicts(
+    rules,
+    conflicts,
+    variable_ranges,
+    activation_threshold=0.7,
+    resolution=50
+)
+
+for diagnosis in diagnoses:
+    print(
+        "Conflict:",
+        diagnosis["rule_1"],
+        "<->",
+        diagnosis["rule_2"]
+    )
+
+    print(
+        "Reason:",
+        diagnosis["reason"]
+    )
+
+    print(
+        "Diagnostic points:",
+        len(diagnosis["diagnostic_points"])
+    )
+
+    for point in diagnosis["diagnostic_points"]:
+        print(
+            point["inputs"],
+            "| activation_1 =",
+            point["activation_1"],
+            "| activation_2 =",
+            point["activation_2"],
+            "| consequents =",
+            point["consequent_1"],
+            "vs",
+            point["consequent_2"]
+        )
