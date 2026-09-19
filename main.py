@@ -29,6 +29,9 @@ from core.severity_experiment import (
     evaluate_thresholds,
     evaluate_generated_rule_pairs
 )
+from core.defect_severity_experiment import (
+    evaluate_defect_severity
+)
 
 # -----------------------------------------
 # FUZZY SETS
@@ -1106,3 +1109,48 @@ for threshold in thresholds:
                 "| detected =",
                 result["detected"]
             )
+print("\nControlled Defect Severity Benchmark")
+print("--------------------------------------------")
+
+severity_shifts = [
+    -20,
+    -15,
+    -10,
+    -5,
+    0,
+    5,
+    10,
+    15,
+    20
+]
+
+severity_results = evaluate_defect_severity(
+    clean_rules,
+    variable_ranges,
+    target_rule_id="R4",
+    variable="temperature",
+    shifts=severity_shifts,
+    conflicting_consequent="risk_high",
+    consistency_threshold=0.7,
+    completeness_resolution=100
+)
+
+for result in severity_results:
+    print(
+        "shift =",
+        result["shift"],
+        "| similarity =",
+        result["antecedent_similarity"],
+        "| conflict =",
+        result["conflict_score"],
+        "| detected =",
+        result["conflict_detected"],
+        "| top_rule =",
+        result["top_localized_rule"],
+        "| repairs =",
+        result["repair_candidate_count"],
+        "| successful_repairs =",
+        result["successful_repair_count"],
+        "| status =",
+        result["overall_status"]
+    )
