@@ -1,12 +1,12 @@
 from copy import deepcopy
 
-from .fuzzy_sets import TriangularFuzzySet
-from .similarity import fuzzy_set_similarity
-from .rules import FuzzyRule
-from .verification import verify_rule_base
-from .localization import calculate_rule_suspicion_scores
-from .repair import generate_repair_candidates
-from .repair_engine import evaluate_repair_candidate
+from ..fuzzy.fuzzy_sets import TriangularFuzzySet
+from ..fuzzy.similarity import fuzzy_set_similarity
+from ..rules.rules import FuzzyRule
+from ..verification.verification import verify_rule_base
+from ..diagnosis.localization import calculate_rule_suspicion_scores
+from ..repair.repair import generate_repair_candidates
+from ..repair.repair_engine import evaluate_repair_candidate
 
 
 def inject_severity_controlled_defect(

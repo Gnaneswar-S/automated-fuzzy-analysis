@@ -1,7 +1,7 @@
-from .fuzzy_sets import TriangularFuzzySet
-from .similarity import fuzzy_set_similarity
-from .rules import FuzzyRule
-from .consistency import calculate_conflict_score
+from ..fuzzy.fuzzy_sets import TriangularFuzzySet
+from ..fuzzy.similarity import fuzzy_set_similarity
+from ..rules.rules import FuzzyRule
+from ..verification.consistency import calculate_conflict_score
 
 def generate_shifted_fuzzy_sets(
     base_set,

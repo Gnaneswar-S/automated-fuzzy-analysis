@@ -1,3 +1,8 @@
+from ..verification.verification import verify_rule_base
+from ..diagnosis.localization import calculate_rule_suspicion_scores
+from ..repair.repair import generate_repair_candidates
+from ..repair.ranking import rank_repair_candidates
+
 def evaluate_benchmark_case(
     benchmark_case,
     defective_rules,
@@ -9,11 +14,6 @@ def evaluate_benchmark_case(
     Evaluates the automated fuzzy rule-base analysis
     against benchmark ground truth.
     """
-
-    from .verification import verify_rule_base
-    from .localization import calculate_rule_suspicion_scores
-    from .repair import generate_repair_candidates
-    from .ranking import rank_repair_candidates
 
     # --------------------------------------------------
     # 1. VERIFY DEFECTIVE RULE BASE

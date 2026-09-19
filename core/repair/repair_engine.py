@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from .verification import verify_rule_base
+from ..verification.verification import verify_rule_base
 
 
 def apply_repair_candidate(rules, candidate):

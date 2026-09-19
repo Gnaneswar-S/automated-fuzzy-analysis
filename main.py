@@ -1,43 +1,55 @@
 from collections import defaultdict
-from core.verification import verify_rule_base
-from core.fuzzy_sets import TriangularFuzzySet
-from core.rules import FuzzyRule
-from core.diagnosis import (
+
+from core.verification.verification import verify_rule_base
+from core.fuzzy.fuzzy_sets import TriangularFuzzySet
+from core.rules.rules import FuzzyRule
+
+from core.diagnosis.diagnosis import (
     diagnose_conflicts as diagnose_explainable_conflicts
 )
-from core.repair import generate_repair_candidates
-from core.repair_engine import evaluate_repair_candidate
-from core.ranking import rank_repair_candidates
-from core.benchmark import create_benchmark_case
-from core.defect_injection import inject_consequent_conflict
-from core.evaluation import evaluate_benchmark_case
-from core.localization_metrics import (
+
+from core.repair.repair import generate_repair_candidates
+from core.repair.repair_engine import evaluate_repair_candidate
+from core.repair.ranking import rank_repair_candidates
+
+from core.experiments.benchmark import create_benchmark_case
+from core.experiments.defect_injection import inject_consequent_conflict
+from core.experiments.evaluation import evaluate_benchmark_case
+
+from core.experiments.localization_metrics import (
     calculate_localization_metrics
 )
-from core.benchmark_runner import (
+
+from core.experiments.benchmark_runner import (
     run_benchmark_case,
-    aggregate_benchmark_results
+    aggregate_benchmark_results,
 )
-from core.localization import (
+
+from core.diagnosis.localization import (
     calculate_rule_suspicion_scores,
     locate_conflict_regions
 )
-from core.tie_aware_localization import (
+
+from core.experiments.tie_aware_localization import (
     evaluate_tie_aware_localization
 )
-from core.severity_experiment import (
+
+from core.experiments.severity_experiment import (
     generate_shifted_fuzzy_sets,
     calculate_similarity_experiment,
     evaluate_thresholds,
     evaluate_generated_rule_pairs
 )
-from core.defect_severity_experiment import (
+
+from core.experiments.defect_severity_experiment import (
     evaluate_defect_severity
 )
-from core.conflict_diagnosis import (
+
+from core.diagnosis.conflict_diagnosis import (
     diagnose_conflicts as diagnose_activation_conflicts
 )
-from core.activation_overlap import (
+
+from core.diagnosis.activation_overlap import (
     characterize_conflict_overlaps
 )
 

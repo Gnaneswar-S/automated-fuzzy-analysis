@@ -1,6 +1,6 @@
 from itertools import combinations
 
-from .similarity import (
+from ..fuzzy.similarity import (
     rule_antecedent_similarity,
     consequent_similarity
 )

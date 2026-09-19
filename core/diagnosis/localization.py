@@ -1,7 +1,7 @@
 import numpy as np
 from collections import defaultdict
 
-from .similarity import (
+from ..fuzzy.similarity import (
     rule_antecedent_similarity,
     consequent_similarity
 )
