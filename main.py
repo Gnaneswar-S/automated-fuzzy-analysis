@@ -37,6 +37,10 @@ from core.defect_severity_experiment import (
 from core.conflict_diagnosis import (
     diagnose_conflicts as diagnose_activation_conflicts
 )
+from core.activation_overlap import (
+    characterize_conflict_overlaps
+)
+
 # -----------------------------------------
 # FUZZY SETS
 # -----------------------------------------
@@ -1201,4 +1205,45 @@ for diagnosis in diagnoses:
             point["consequent_1"],
             "vs",
             point["consequent_2"]
+        )
+print("\nActivation-Overlap Topology Characterization")
+print("--------------------------------------------")
+
+overlap_results = characterize_conflict_overlaps(
+    rules,
+    conflicts,
+    variable_ranges,
+    activation_threshold=0.7,
+    resolution=50
+)
+
+for result in overlap_results:
+    print(
+        "Conflict:",
+        result["rule_1"],
+        "<->",
+        result["rule_2"]
+    )
+    print("Reason:", result["reason"])
+    print("Connected components:", result["component_count"])
+
+    for index, component in enumerate(
+        result["components"],
+        start=1
+    ):
+        print(
+            "Component",
+            index,
+            "| points =",
+            component["point_count"],
+            "| max joint activation =",
+            component["maximum_joint_activation"]
+        )
+        print(
+            "Bounds:",
+            component["bounds"]
+        )
+        print(
+            "Representative point:",
+            component["representative_point"]
         )
