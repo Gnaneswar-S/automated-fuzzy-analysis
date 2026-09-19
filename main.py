@@ -20,6 +20,9 @@ from core.localization import (
     calculate_rule_suspicion_scores,
     locate_conflict_regions
 )
+from core.tie_aware_localization import (
+    evaluate_tie_aware_localization
+)
 
 # -----------------------------------------
 # FUZZY SETS
@@ -957,3 +960,30 @@ print(
     localization_metrics["f1_score"],
     "%"
 )
+tie_aware_metrics = evaluate_tie_aware_localization(
+    benchmark_results
+)
+
+print("\nTie-Aware Localization")
+print("--------------------------------------------")
+print(
+    "Candidate-set accuracy:",
+    tie_aware_metrics["candidate_set_accuracy"],
+    "%"
+)
+print(
+    "Ambiguous case rate:",
+    tie_aware_metrics["ambiguous_case_rate"],
+    "%"
+)
+
+print("\nCase-level results")
+
+for case in tie_aware_metrics["case_results"]:
+    print(
+        case["case_id"],
+        "| actual =", case["actual_rule"],
+        "| candidates =", case["top_candidates"],
+        "| correct =", case["correct_in_candidate_set"],
+        "| ambiguous =", case["ambiguous"]
+    )
