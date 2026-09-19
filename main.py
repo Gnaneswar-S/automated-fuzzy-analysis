@@ -1,0 +1,959 @@
+from collections import defaultdict
+from core.verification import verify_rule_base
+from core.fuzzy_sets import TriangularFuzzySet
+from core.rules import FuzzyRule
+from core.diagnosis import diagnose_conflicts
+from core.repair import generate_repair_candidates
+from core.repair_engine import evaluate_repair_candidate
+from core.ranking import rank_repair_candidates
+from core.benchmark import create_benchmark_case
+from core.defect_injection import inject_consequent_conflict
+from core.evaluation import evaluate_benchmark_case
+from core.localization_metrics import (
+    calculate_localization_metrics
+)
+from core.benchmark_runner import (
+    run_benchmark_case,
+    aggregate_benchmark_results
+)
+from core.localization import (
+    calculate_rule_suspicion_scores,
+    locate_conflict_regions
+)
+
+# -----------------------------------------
+# FUZZY SETS
+# -----------------------------------------
+
+temperature_low = TriangularFuzzySet(
+    "low",
+    0,
+    20,
+    40
+)
+
+temperature_medium = TriangularFuzzySet(
+    "medium",
+    30,
+    50,
+    70
+)
+
+temperature_high = TriangularFuzzySet(
+    "high",
+    60,
+    80,
+    100
+)
+
+
+# -----------------------------------------
+# RULES
+# -----------------------------------------
+
+rule_1 = FuzzyRule(
+    rule_id="R1",
+    antecedent={
+        "temperature": temperature_low
+    },
+    consequent="risk_low"
+)
+
+rule_2 = FuzzyRule(
+    rule_id="R2",
+    antecedent={
+        "temperature": temperature_medium
+    },
+    consequent="risk_medium"
+)
+
+rule_3 = FuzzyRule(
+    rule_id="R3",
+    antecedent={
+        "temperature": temperature_high
+    },
+    consequent="risk_high"
+)
+
+rule_4 = FuzzyRule(
+    rule_id="R4",
+    antecedent={
+        "temperature":
+            temperature_medium
+    },
+    consequent="risk_high"
+)
+
+rules = [
+    rule_1,
+    rule_2,
+    rule_3,
+    rule_4
+]
+
+# -----------------------------------------
+# CLEAN BASELINE RULE BASE
+# -----------------------------------------
+
+clean_rules = [
+    FuzzyRule(
+        rule_id="R1",
+        antecedent={
+            "temperature": temperature_low
+        },
+        consequent="risk_low"
+    ),
+
+    FuzzyRule(
+        rule_id="R2",
+        antecedent={
+            "temperature": temperature_medium
+        },
+        consequent="risk_medium"
+    ),
+
+    FuzzyRule(
+        rule_id="R3",
+        antecedent={
+            "temperature": temperature_high
+        },
+        consequent="risk_high"
+    ),
+
+    FuzzyRule(
+        rule_id="R4",
+        antecedent={
+            "temperature": temperature_medium
+        },
+        consequent="risk_medium"
+    )
+]
+
+# -----------------------------------------
+# INPUT RANGE
+# -----------------------------------------
+
+variable_ranges = {
+    "temperature": (0, 100)
+}
+
+
+# -----------------------------------------
+# UNIFIED VERIFICATION
+# -----------------------------------------
+
+result = verify_rule_base(
+    rules,
+    variable_ranges,
+    consistency_threshold=0.7,
+    completeness_resolution=100
+)
+
+
+# -----------------------------------------
+# REPORT
+# -----------------------------------------
+
+print("\n============================================")
+print("FUZZY RULE-BASE VERIFICATION REPORT")
+print("============================================")
+
+
+print(
+    "\nRules analyzed:",
+    result["rules_analyzed"]
+)
+
+
+# -----------------------------------------
+# CONSISTENCY
+# -----------------------------------------
+
+print("\nConsistency")
+print("--------------------------------------------")
+
+print(
+    "Potential conflicts:",
+    result["consistency"]["conflict_count"]
+)
+
+print(
+    "Status:",
+    result["consistency"]["status"]
+)
+
+
+if result["consistency"]["conflicts"]:
+
+    print("\nDetected conflicts:")
+
+    for conflict in result["consistency"]["conflicts"]:
+
+        print(
+            f"  {conflict['rule_1']} <-> "
+            f"{conflict['rule_2']} | "
+            f"score = "
+            f"{conflict['conflict_score']}"
+        )
+
+
+# -----------------------------------------
+# COMPLETENESS
+# -----------------------------------------
+
+print("\nCompleteness")
+print("--------------------------------------------")
+
+print(
+    "Coverage:",
+    result["completeness"]["score"],
+    "%"
+)
+
+print(
+    "Uncovered regions:",
+    result["completeness"]["uncovered_count"]
+)
+
+print(
+    "Status:",
+    result["completeness"]["status"]
+)
+
+
+# -----------------------------------------
+# OVERALL STATUS
+# -----------------------------------------
+
+print("\nOverall status")
+print("--------------------------------------------")
+
+print(
+    result["overall_status"]
+)
+
+print("\n============================================")
+# -----------------------------------------
+# RULE LOCALIZATION
+# -----------------------------------------
+
+localization = calculate_rule_suspicion_scores(
+    rules,
+    variable_ranges,
+    consistency_threshold=0.7
+)
+
+
+print("\nRule Localization")
+print("--------------------------------------------")
+
+for item in localization:
+
+    print(
+        f"{item['rule_id']} | "
+        f"suspicion = "
+        f"{item['suspicion_score']} | "
+        f"conflicts = "
+        f"{item['conflict_count']}"
+    )
+# -----------------------------------------
+# FUZZY-REGION LOCALIZATION
+# -----------------------------------------
+
+regions = locate_conflict_regions(
+    rules,
+    variable_ranges,
+    threshold=0.7,
+    resolution=50
+)
+
+
+print("\nFuzzy-Region Localization")
+print("--------------------------------------------")
+
+print(
+    "Conflict-region points:",
+    len(regions)
+)
+
+
+if regions:
+
+    print("\nExample conflict regions:")
+
+    for region in regions[:10]:
+
+        print(
+            f"{region['inputs']} | "
+            f"{region['rule_1']} <-> "
+            f"{region['rule_2']} | "
+            f"strength = "
+            f"{region['conflict_strength']}"
+        )
+
+else:
+
+    print(
+        "No conflict regions detected."
+    )
+
+# -----------------------------------------
+# EXPLAINABLE DIAGNOSIS
+# -----------------------------------------
+
+diagnoses = diagnose_conflicts(
+    rules,
+    result["consistency"]["conflicts"],
+    regions
+)
+
+print("\nExplainable Diagnosis")
+print("--------------------------------------------")
+
+for diagnosis in diagnoses:
+
+    print(
+        f"Conflict: "
+        f"{diagnosis['rule_1']} <-> "
+        f"{diagnosis['rule_2']}"
+    )
+
+    print(
+        f"Severity: "
+        f"{diagnosis['severity']}"
+    )
+
+    print(
+        f"Reason: "
+        f"{diagnosis['reason']}"
+    )
+
+    print(
+        f"Consequents: "
+        f"{diagnosis['consequent_1']} "
+        f"vs "
+        f"{diagnosis['consequent_2']}"
+    )
+
+    print(
+        f"Conflict-region points: "
+        f"{diagnosis['conflict_region_count']}"
+    )
+# -----------------------------------------
+# REPAIR CANDIDATES
+# -----------------------------------------
+
+repair_candidates = generate_repair_candidates(
+    rules,
+    result["consistency"]["conflicts"]
+)
+
+print("\nRepair Candidates")
+print("--------------------------------------------")
+
+for index, candidate in enumerate(
+    repair_candidates,
+    start=1
+):
+
+    print(
+        f"{index}. "
+        f"{candidate['action']} | "
+        f"{candidate['target_rule']}"
+    )
+
+    print(
+        f"   {candidate['description']}"
+    )
+# -----------------------------------------
+# REPAIR APPLICATION + RE-VERIFICATION
+# -----------------------------------------
+
+print("\nRepair Application + Mandatory Re-verification")
+print("--------------------------------------------")
+
+
+# Select one candidate for controlled testing.
+# Here we change R4 from risk_high to risk_medium.
+
+repair_candidate = {
+    "action": "CHANGE_CONSEQUENT",
+    "target_rule": "R4",
+    "new_consequent": "risk_medium",
+    "description":
+        "Change R4 consequent from "
+        "'risk_high' to 'risk_medium'."
+}
+
+
+repair_result = evaluate_repair_candidate(
+    rules,
+    repair_candidate,
+    variable_ranges,
+    consistency_threshold=0.7,
+    completeness_resolution=100
+)
+
+
+# -----------------------------------------
+# BEFORE
+# -----------------------------------------
+
+before = repair_result["before"]
+
+print("\nBEFORE REPAIR")
+print("--------------------------------------------")
+
+print(
+    "Conflicts:",
+    before["consistency"]["conflict_count"]
+)
+
+print(
+    "Completeness:",
+    before["completeness"]["score"],
+    "%"
+)
+
+print(
+    "Overall status:",
+    before["overall_status"]
+)
+
+
+# -----------------------------------------
+# AFTER
+# -----------------------------------------
+
+after = repair_result["after"]
+
+print("\nAFTER REPAIR")
+print("--------------------------------------------")
+
+print(
+    "Conflicts:",
+    after["consistency"]["conflict_count"]
+)
+
+print(
+    "Completeness:",
+    after["completeness"]["score"],
+    "%"
+)
+
+print(
+    "Overall status:",
+    after["overall_status"]
+)
+
+
+# -----------------------------------------
+# COMPARISON
+# -----------------------------------------
+
+comparison = repair_result["comparison"]
+
+print("\nRepair Evaluation")
+print("--------------------------------------------")
+
+print(
+    "Conflict improvement:",
+    comparison["conflict_improved"]
+)
+
+print(
+    "Completeness preserved:",
+    comparison["completeness_preserved"]
+)
+
+print(
+    "Repair verification:",
+    "SUCCESS"
+    if comparison["repair_success"]
+    else "FAILED"
+)
+
+# -----------------------------------------
+# REPAIR CANDIDATE RANKING
+# -----------------------------------------
+
+ranked_candidates = rank_repair_candidates(
+    rules,
+    repair_candidates,
+    variable_ranges,
+    consistency_threshold=0.7,
+    completeness_resolution=100
+)
+
+
+print("\nRepair Candidate Ranking")
+print("--------------------------------------------")
+
+
+for index, item in enumerate(
+    ranked_candidates,
+    start=1
+):
+
+    candidate = item["candidate"]
+
+    print(
+        f"{index}. "
+        f"{candidate['action']} | "
+        f"{candidate['target_rule']}"
+    )
+
+    print(
+        f"   Score: "
+        f"{item['score']}"
+    )
+
+    print(
+        f"   Conflicts: "
+        f"{item['conflicts_before']} "
+        f"-> "
+        f"{item['conflicts_after']}"
+    )
+
+    print(
+        f"   Completeness: "
+        f"{item['completeness_before']}% "
+        f"-> "
+        f"{item['completeness_after']}%"
+    )
+
+    print(
+        f"   Verification: "
+        f"{'SUCCESS' if item['repair_success'] else 'FAILED'}"
+    )
+
+    print()
+
+# -----------------------------------------
+# CONTROLLED DEFECT INJECTION EXPERIMENT
+# -----------------------------------------
+
+defective_rules, defect_info = inject_consequent_conflict(
+    clean_rules,
+    target_rule_id="R4",
+    conflicting_consequent="risk_high"
+)
+
+
+print("\nControlled Defect Injection Experiment")
+print("--------------------------------------------")
+
+print(
+    "Defect type:",
+    defect_info["defect_type"]
+)
+
+print(
+    "Target rule:",
+    defect_info["target_rule"]
+)
+
+print(
+    "Original consequent:",
+    defect_info["original_consequent"]
+)
+
+print(
+    "Injected consequent:",
+    defect_info["injected_consequent"]
+)
+
+
+# -----------------------------------------
+# VERIFY CLEAN BASELINE
+# -----------------------------------------
+
+clean_result = verify_rule_base(
+    clean_rules,
+    variable_ranges,
+    consistency_threshold=0.7,
+    completeness_resolution=100
+)
+
+
+print("\nClean Baseline Verification")
+print("--------------------------------------------")
+
+print(
+    "Conflicts:",
+    clean_result["consistency"]["conflict_count"]
+)
+
+print(
+    "Completeness:",
+    clean_result["completeness"]["score"],
+    "%"
+)
+
+print(
+    "Overall status:",
+    clean_result["overall_status"]
+)
+
+
+# -----------------------------------------
+# VERIFY DEFECTIVE BASELINE
+# -----------------------------------------
+
+defective_result = verify_rule_base(
+    defective_rules,
+    variable_ranges,
+    consistency_threshold=0.7,
+    completeness_resolution=100
+)
+
+
+print("\nDefective Rule Base Verification")
+print("--------------------------------------------")
+
+print(
+    "Rules analyzed:",
+    defective_result["rules_analyzed"]
+)
+
+print(
+    "Conflicts:",
+    defective_result["consistency"]["conflict_count"]
+)
+
+print(
+    "Completeness:",
+    defective_result["completeness"]["score"],
+    "%"
+)
+
+print(
+    "Overall status:",
+    defective_result["overall_status"]
+)
+# -----------------------------------------
+# BENCHMARK CASE 001
+# -----------------------------------------
+
+benchmark_case = create_benchmark_case(
+    case_id="CASE-001",
+
+    clean_rules=clean_rules,
+
+    defect_type="CONSEQUENT_CONFLICT",
+
+    target_rule="R4",
+
+    original_value="risk_medium",
+
+    injected_value="risk_high",
+
+    expected_repair_action="CHANGE_CONSEQUENT"
+)
+
+
+print("\nBenchmark Case")
+print("--------------------------------------------")
+
+print(
+    "Case ID:",
+    benchmark_case["case_id"]
+)
+
+print(
+    "Defect type:",
+    benchmark_case["defect"]["type"]
+)
+
+print(
+    "Target rule:",
+    benchmark_case["defect"]["target_rule"]
+)
+
+print(
+    "Original value:",
+    benchmark_case["defect"]["original_value"]
+)
+
+print(
+    "Injected value:",
+    benchmark_case["defect"]["injected_value"]
+)
+
+print(
+    "Expected repair:",
+    benchmark_case["ground_truth"]["repair_action"]
+)
+
+print(
+    "Expected target:",
+    benchmark_case["ground_truth"]["target_rule"]
+)
+
+print(
+    "Expected value:",
+    benchmark_case["ground_truth"]["correct_value"]
+)
+
+# ============================================================
+# STEP 27: AUTOMATED BENCHMARK EVALUATION
+# ============================================================
+
+benchmark_evaluation = evaluate_benchmark_case(
+    benchmark_case,
+    defective_rules,
+    variable_ranges,
+    consistency_threshold=0.7,
+    completeness_resolution=100
+)
+
+print("\nAutomated Benchmark Evaluation")
+print("--------------------------------------------")
+
+print(
+    "Case ID:",
+    benchmark_evaluation["case_id"]
+)
+
+print(
+    "Defect detected:",
+    benchmark_evaluation["evaluation"]
+    ["defect_detected"]
+)
+
+print(
+    "Predicted localized rule:",
+    benchmark_evaluation["prediction"]
+    ["localized_rule"]
+)
+
+print(
+    "Actual defective rule:",
+    benchmark_evaluation["ground_truth"]
+    ["target_rule"]
+)
+
+print(
+    "Localization correct:",
+    benchmark_evaluation["evaluation"]
+    ["localization_correct"]
+)
+
+print(
+    "Predicted repair:",
+    benchmark_evaluation["prediction"]
+    ["repair_action"]
+)
+
+print(
+    "Expected repair:",
+    benchmark_evaluation["ground_truth"]
+    ["repair_action"]
+)
+
+print(
+    "Predicted repair target:",
+    benchmark_evaluation["prediction"]
+    ["repair_target"]
+)
+
+print(
+    "Expected repair target:",
+    benchmark_evaluation["ground_truth"]
+    ["target_rule"]
+)
+
+print(
+    "Predicted repair value:",
+    benchmark_evaluation["prediction"]
+    ["repair_value"]
+)
+
+print(
+    "Expected repair value:",
+    benchmark_evaluation["ground_truth"]
+    ["correct_value"]
+)
+
+print(
+    "Repair prediction correct:",
+    benchmark_evaluation["evaluation"]
+    ["repair_prediction_correct"]
+)
+# ============================================================
+# STEP 29: MULTI-CASE BENCHMARK EVALUATION
+# ============================================================
+
+benchmark_results = []
+
+# ------------------------------------------------------------
+# CASE 001
+# R4 is intentionally corrupted
+# ------------------------------------------------------------
+
+case_001 = run_benchmark_case(
+    case_id="CASE-001",
+    clean_rules=clean_rules,
+    variable_ranges=variable_ranges,
+    target_rule="R4",
+    conflicting_consequent="risk_high",
+    expected_repair_action="CHANGE_CONSEQUENT"
+)
+
+benchmark_results.append(case_001)
+
+
+# ------------------------------------------------------------
+# CASE 002
+# R2 is intentionally corrupted
+# ------------------------------------------------------------
+
+case_002 = run_benchmark_case(
+    case_id="CASE-002",
+    clean_rules=clean_rules,
+    variable_ranges=variable_ranges,
+    target_rule="R2",
+    conflicting_consequent="risk_high",
+    expected_repair_action="CHANGE_CONSEQUENT"
+)
+
+benchmark_results.append(case_002)
+
+
+# ------------------------------------------------------------
+# CASE 003
+# R4 is corrupted with a different consequent
+# ------------------------------------------------------------
+
+case_003 = run_benchmark_case(
+    case_id="CASE-003",
+    clean_rules=clean_rules,
+    variable_ranges=variable_ranges,
+    target_rule="R4",
+    conflicting_consequent="risk_low",
+    expected_repair_action="CHANGE_CONSEQUENT"
+)
+
+benchmark_results.append(case_003)
+
+
+# ------------------------------------------------------------
+# CASE 004
+# R2 is corrupted with another conflicting consequent
+# ------------------------------------------------------------
+
+case_004 = run_benchmark_case(
+    case_id="CASE-004",
+    clean_rules=clean_rules,
+    variable_ranges=variable_ranges,
+    target_rule="R2",
+    conflicting_consequent="risk_low",
+    expected_repair_action="CHANGE_CONSEQUENT"
+)
+
+benchmark_results.append(case_004)
+
+
+# ------------------------------------------------------------
+# AGGREGATE RESULTS
+# ------------------------------------------------------------
+
+benchmark_metrics = aggregate_benchmark_results(
+    benchmark_results
+)
+
+
+print("\nMulti-Case Benchmark Evaluation")
+print("--------------------------------------------")
+
+print(
+    "Total cases:",
+    benchmark_metrics["total_cases"]
+)
+
+print(
+    "Detection accuracy:",
+    round(
+        benchmark_metrics["detection_accuracy"],
+        2
+    ),
+    "%"
+)
+
+print(
+    "Localization accuracy:",
+    round(
+        benchmark_metrics["localization_accuracy"],
+        2
+    ),
+    "%"
+)
+
+print(
+    "Repair action accuracy:",
+    round(
+        benchmark_metrics["repair_action_accuracy"],
+        2
+    ),
+    "%"
+)
+
+print(
+    "Repair target accuracy:",
+    round(
+        benchmark_metrics["repair_target_accuracy"],
+        2
+    ),
+    "%"
+)
+
+print(
+    "Repair value accuracy:",
+    round(
+        benchmark_metrics["repair_value_accuracy"],
+        2
+    ),
+    "%"
+)
+
+print(
+    "Repair success rate:",
+    round(
+        benchmark_metrics["repair_success_rate"],
+        2
+    ),
+    "%"
+)
+localization_metrics = calculate_localization_metrics(
+    benchmark_results
+)
+
+print("\nLocalization Metrics")
+print("--------------------------------------------")
+print(
+    "True positives:",
+    localization_metrics["true_positive"]
+)
+print(
+    "False positives:",
+    localization_metrics["false_positive"]
+)
+print(
+    "False negatives:",
+    localization_metrics["false_negative"]
+)
+print(
+    "Precision:",
+    localization_metrics["precision"],
+    "%"
+)
+print(
+    "Recall:",
+    localization_metrics["recall"],
+    "%"
+)
+print(
+    "F1-score:",
+    localization_metrics["f1_score"],
+    "%"
+)
