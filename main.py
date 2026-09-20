@@ -12,6 +12,9 @@ from core.repair.repair import generate_repair_candidates
 from core.repair.repair_engine import evaluate_repair_candidate
 from core.repair.ranking import rank_repair_candidates
 from core.repair.behavioral_validation import evaluate_repair_behavior
+from core.repair.behavior_aware_selection import (
+    select_behaviorally_safe_repairs
+)
 
 from core.experiments.benchmark import create_benchmark_case
 from core.experiments.defect_injection import inject_consequent_conflict
@@ -603,6 +606,73 @@ for index, item in enumerate(
     )
 
     print()
+# -----------------------------------------
+# BEHAVIOR-AWARE REPAIR SELECTION
+# -----------------------------------------
+
+behavior_aware_selection = select_behaviorally_safe_repairs(
+    rules,
+    ranked_candidates,
+    variable_ranges,
+    result["consistency"]["conflicts"],
+    resolution=50,
+    activation_threshold=0.7
+)
+
+print("\nBehavior-Aware Repair Selection")
+print("--------------------------------------------")
+
+print(
+    "Structurally successful candidates evaluated:",
+    behavior_aware_selection["evaluated_candidate_count"]
+)
+
+print(
+    "Behaviorally safe candidates:",
+    behavior_aware_selection["safe_candidate_count"]
+)
+
+if behavior_aware_selection["safe_candidate_count"] == 0:
+
+    print(
+        "Selection result:",
+        "NO BEHAVIORALLY SAFE CANDIDATE"
+    )
+
+else:
+
+    print(
+        "Behaviorally safe candidates:"
+    )
+
+    for index, item in enumerate(
+        behavior_aware_selection["safe_candidates"],
+        start=1
+    ):
+
+        candidate = item["candidate"]
+
+        print(
+            f"{index}. "
+            f"{candidate['action']} | "
+            f"{candidate['target_rule']}"
+        )
+
+        print(
+            f"   Ranking score: "
+            f"{item['score']}"
+        )
+
+        print(
+            "   Collateral behavior changes:",
+            item["behavioral_validation"]
+            ["collateral_change_count"]
+        )
+
+        print(
+            "   Decision:",
+            "BEHAVIORALLY ACCEPTABLE"
+        )
 
 # -----------------------------------------
 # CONTROLLED DEFECT INJECTION EXPERIMENT

@@ -158,6 +158,9 @@ def rank_repair_candidates(
         ranked_candidates.append({
             "candidate": candidate,
 
+            "repaired_rules":
+                evaluation["repaired_rules"],
+
             "score": score_details["ranking_score"],
 
             "conflicts_before":
