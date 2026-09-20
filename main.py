@@ -11,6 +11,7 @@ from core.diagnosis.diagnosis import (
 from core.repair.repair import generate_repair_candidates
 from core.repair.repair_engine import evaluate_repair_candidate
 from core.repair.ranking import rank_repair_candidates
+from core.repair.behavioral_validation import evaluate_repair_behavior
 
 from core.experiments.benchmark import create_benchmark_case
 from core.experiments.defect_injection import inject_consequent_conflict
@@ -504,6 +505,47 @@ print(
     "SUCCESS"
     if comparison["repair_success"]
     else "FAILED"
+)
+
+# -----------------------------------------
+# BEHAVIORAL REPAIR VALIDATION
+# -----------------------------------------
+
+behavioral_validation = evaluate_repair_behavior(
+    rules,
+    repair_result["repaired_rules"],
+    variable_ranges,
+    result["consistency"]["conflicts"],
+    resolution=50,
+    activation_threshold=0.7
+)
+
+print("\nBehavioral Repair Validation")
+print("--------------------------------------------")
+
+print(
+    "Grid points:",
+    behavioral_validation["grid_points"]
+)
+
+print(
+    "Behavior changes:",
+    behavioral_validation["changed_point_count"]
+)
+
+print(
+    "Changes inside diagnosed conflict region:",
+    behavioral_validation["affected_change_count"]
+)
+
+print(
+    "Changes outside diagnosed conflict region:",
+    behavioral_validation["collateral_change_count"]
+)
+
+print(
+    "Repair safety:",
+    behavioral_validation["repair_safety"]
 )
 
 # -----------------------------------------
