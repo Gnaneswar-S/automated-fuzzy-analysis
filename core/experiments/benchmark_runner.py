@@ -130,3 +130,51 @@ def aggregate_benchmark_results(results):
         "repair_success_rate":
             repair_correct / total_cases * 100
     }
+def run_multi_defect_benchmark_case(
+    case_id,
+    clean_rules,
+    variable_ranges,
+    defects,
+    expected_repairs,
+    consistency_threshold=0.7,
+    completeness_resolution=100
+):
+    """
+    Creates and injects a multi-defect benchmark case.
+
+    This infrastructure stage intentionally stops after
+    controlled defect injection and structural verification.
+
+    Full multi-defect localization and repair evaluation
+    will be implemented separately in the Step 39 experiment.
+    """
+
+    from .defect_injection import inject_multiple_defects
+    from .benchmark import create_multi_defect_benchmark_case
+    from ..verification.verification import verify_rule_base
+
+    defective_rules, defect_info = inject_multiple_defects(
+        clean_rules,
+        defects
+    )
+
+    benchmark_case = create_multi_defect_benchmark_case(
+        case_id=case_id,
+        clean_rules=clean_rules,
+        defect_info=defect_info,
+        expected_repairs=expected_repairs
+    )
+
+    verification = verify_rule_base(
+        defective_rules,
+        variable_ranges,
+        consistency_threshold=consistency_threshold,
+        completeness_resolution=completeness_resolution
+    )
+
+    return {
+        "benchmark_case": benchmark_case,
+        "defect_info": defect_info,
+        "defective_rules": defective_rules,
+        "verification": verification
+    }
