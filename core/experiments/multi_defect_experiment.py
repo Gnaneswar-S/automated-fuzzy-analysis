@@ -1877,3 +1877,111 @@ def create_three_region_interacting_experiment_case():
         defects=defects,
         expected_repairs=expected_repairs
     )
+def run_multi_defect_experiment_suite(
+    activation_threshold=0.7,
+    resolution=50,
+    consistency_threshold=0.7,
+    completeness_resolution=30
+):
+    """
+    Runs the complete controlled multi-defect experiment suite.
+
+    MD-2, MD-3, and MD-4 use the existing two-region
+    counterfactual interaction analysis.
+
+    MD-5 and MD-6 use the existing generic three-region
+    counterfactual interaction analysis.
+
+    This function only orchestrates existing experiment
+    constructors and analysis functions. It does not alter
+    benchmark definitions or introduce additional metrics.
+    """
+
+    md2 = create_independent_experiment_case()
+    md3 = create_overlapping_experiment_case()
+    md4 = create_interacting_experiment_case()
+    md5 = create_three_region_independent_experiment_case()
+    md6 = create_three_region_interacting_experiment_case()
+
+    variable_ranges = {
+        "temperature": (0, 100),
+        "humidity": (0, 100)
+    }
+
+    two_region_results = {
+        "MD-2-INDEPENDENT": run_interacting_counterfactual_experiment(
+            case=md2,
+            variable_ranges=variable_ranges,
+            activation_threshold=activation_threshold,
+            resolution=resolution,
+            consistency_threshold=consistency_threshold,
+            completeness_resolution=completeness_resolution
+        ),
+        "MD-3-OVERLAPPING": run_interacting_counterfactual_experiment(
+            case=md3,
+            variable_ranges=variable_ranges,
+            activation_threshold=activation_threshold,
+            resolution=resolution,
+            consistency_threshold=consistency_threshold,
+            completeness_resolution=completeness_resolution
+        ),
+        "MD-4-INTERACTING": run_interacting_counterfactual_experiment(
+            case=md4,
+            variable_ranges=variable_ranges,
+            activation_threshold=activation_threshold,
+            resolution=resolution,
+            consistency_threshold=consistency_threshold,
+            completeness_resolution=completeness_resolution
+        )
+    }
+
+    defect_regions = [
+        {
+            "name": "A",
+            "rule_ids": ["A1", "A2"],
+            "target_rule": "A2",
+            "correct_value": "risk_medium"
+        },
+        {
+            "name": "B",
+            "rule_ids": ["B1", "B2"],
+            "target_rule": "B2",
+            "correct_value": "risk_medium"
+        },
+        {
+            "name": "C",
+            "rule_ids": ["C1", "C2"],
+            "target_rule": "C2",
+            "correct_value": "risk_medium"
+        }
+    ]
+
+    three_region_results = {
+        "MD-5-THREE-INDEPENDENT": (
+            run_multi_region_counterfactual_experiment(
+                case=md5,
+                variable_ranges=variable_ranges,
+                defect_regions=defect_regions,
+                activation_threshold=activation_threshold,
+                resolution=resolution,
+                consistency_threshold=consistency_threshold,
+                completeness_resolution=completeness_resolution
+            )
+        ),
+        "MD-6-THREE-INTERACTING": (
+            run_multi_region_counterfactual_experiment(
+                case=md6,
+                variable_ranges=variable_ranges,
+                defect_regions=defect_regions,
+                activation_threshold=activation_threshold,
+                resolution=resolution,
+                consistency_threshold=consistency_threshold,
+                completeness_resolution=completeness_resolution
+            )
+        )
+    }
+
+    return {
+        "two_region": two_region_results,
+        "three_region": three_region_results
+    }
