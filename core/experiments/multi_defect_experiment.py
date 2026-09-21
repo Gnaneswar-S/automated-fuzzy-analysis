@@ -1612,3 +1612,268 @@ def create_three_region_independent_experiment_case():
         consistency_threshold=0.7,
         completeness_resolution=100
     )
+
+def create_three_region_interacting_experiment_case():
+    """
+    Creates a controlled three-region counterfactual interaction
+    benchmark.
+
+    Region A:
+        standard low temperature AND standard low humidity
+
+    Region B:
+        first shifted-low temperature AND first shifted-low humidity
+
+    Region C:
+        second shifted-low temperature AND second shifted-low humidity
+
+    The three regions form a controlled progression in antecedent
+    geometry. A-B and B-C exceed the consistency threshold and
+    exhibit strong activation overlap, while A-C remains below the
+    consistency threshold.
+
+    Behavioral interaction is not assumed by construction. It is
+    measured using the generic multi-region counterfactual engine.
+    """
+
+    temperature_low = TriangularFuzzySet(
+        "temperature_low",
+        0,
+        20,
+        40
+    )
+
+    temperature_shifted_low_1 = TriangularFuzzySet(
+        "temperature_shifted_low_1",
+        2,
+        22,
+        42
+    )
+
+    temperature_shifted_low_2 = TriangularFuzzySet(
+        "temperature_shifted_low_2",
+        4,
+        24,
+        44
+    )
+
+    temperature_medium = TriangularFuzzySet(
+        "temperature_medium",
+        30,
+        50,
+        70
+    )
+
+    temperature_high = TriangularFuzzySet(
+        "temperature_high",
+        60,
+        80,
+        100
+    )
+
+    humidity_low = TriangularFuzzySet(
+        "humidity_low",
+        0,
+        20,
+        40
+    )
+
+    humidity_shifted_low_1 = TriangularFuzzySet(
+        "humidity_shifted_low_1",
+        2,
+        22,
+        42
+    )
+
+    humidity_shifted_low_2 = TriangularFuzzySet(
+        "humidity_shifted_low_2",
+        4,
+        24,
+        44
+    )
+
+    humidity_medium = TriangularFuzzySet(
+        "humidity_medium",
+        30,
+        50,
+        70
+    )
+
+    humidity_high = TriangularFuzzySet(
+        "humidity_high",
+        60,
+        80,
+        100
+    )
+
+    clean_rules = [
+        FuzzyRule(
+            "A1",
+            {
+                "temperature": temperature_low,
+                "humidity": humidity_low
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "A2",
+            {
+                "temperature": temperature_low,
+                "humidity": humidity_low
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "B1",
+            {
+                "temperature": temperature_shifted_low_1,
+                "humidity": humidity_shifted_low_1
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "B2",
+            {
+                "temperature": temperature_shifted_low_1,
+                "humidity": humidity_shifted_low_1
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "C1",
+            {
+                "temperature": temperature_shifted_low_2,
+                "humidity": humidity_shifted_low_2
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "C2",
+            {
+                "temperature": temperature_shifted_low_2,
+                "humidity": humidity_shifted_low_2
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "D1",
+            {
+                "temperature": temperature_low,
+                "humidity": humidity_medium
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "D2",
+            {
+                "temperature": temperature_low,
+                "humidity": humidity_high
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "D3",
+            {
+                "temperature": temperature_medium,
+                "humidity": humidity_low
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "D4",
+            {
+                "temperature": temperature_medium,
+                "humidity": humidity_medium
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "D5",
+            {
+                "temperature": temperature_medium,
+                "humidity": humidity_high
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "D6",
+            {
+                "temperature": temperature_high,
+                "humidity": humidity_low
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "D7",
+            {
+                "temperature": temperature_high,
+                "humidity": humidity_medium
+            },
+            "risk_medium"
+        ),
+
+        FuzzyRule(
+            "D8",
+            {
+                "temperature": temperature_high,
+                "humidity": humidity_high
+            },
+            "risk_medium"
+        )
+    ]
+
+    defects = [
+        {
+            "target_rule": "A2",
+            "conflicting_consequent": "risk_high"
+        },
+        {
+            "target_rule": "B2",
+            "conflicting_consequent": "risk_low"
+        },
+        {
+            "target_rule": "C2",
+            "conflicting_consequent": "risk_high"
+        }
+    ]
+
+    expected_repairs = [
+        {
+            "target_rule": "A2",
+            "action": "CHANGE_CONSEQUENT",
+            "correct_value": "risk_medium"
+        },
+        {
+            "target_rule": "B2",
+            "action": "CHANGE_CONSEQUENT",
+            "correct_value": "risk_medium"
+        },
+        {
+            "target_rule": "C2",
+            "action": "CHANGE_CONSEQUENT",
+            "correct_value": "risk_medium"
+        }
+    ]
+
+    return run_multi_defect_benchmark_case(
+        case_id="MD-6-THREE-INTERACTING",
+        clean_rules=clean_rules,
+        variable_ranges={
+            "temperature": (0, 100),
+            "humidity": (0, 100)
+        },
+        defects=defects,
+        expected_repairs=expected_repairs
+    )
