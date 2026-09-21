@@ -6,6 +6,7 @@ from ..diagnosis.activation_overlap import (
 )
 from .defect_injection import inject_multiple_defects
 from .benchmark import create_multi_defect_benchmark_case
+from .benchmark_runner import run_multi_defect_benchmark_case
 from ..repair.repair_engine import apply_repair_candidate
 from ..repair.behavioral_validation import evaluate_repair_behavior
 
@@ -1146,3 +1147,468 @@ def run_interacting_counterfactual_experiment(
             )
         }
     }
+
+def _run_multi_region_counterfactual(
+    case,
+    variable_ranges,
+    target_region,
+    remaining_regions,
+    activation_threshold=0.7,
+    resolution=50,
+    consistency_threshold=0.7,
+    completeness_resolution=30
+):
+    """
+    Applies one controlled repair to a target defect region and
+    measures its effects on every remaining defect region.
+    """
+
+    original_rules = case["defective_rules"]
+
+    original_verification = verify_rule_base(
+        original_rules,
+        variable_ranges,
+        consistency_threshold=consistency_threshold,
+        completeness_resolution=completeness_resolution
+    )
+
+    candidate = _build_counterfactual_repair_candidate(
+        target_region["target_rule"],
+        target_region["correct_value"]
+    )
+
+    repaired_rules = apply_repair_candidate(
+        original_rules,
+        candidate
+    )
+
+    repaired_verification = verify_rule_base(
+        repaired_rules,
+        variable_ranges,
+        consistency_threshold=consistency_threshold,
+        completeness_resolution=completeness_resolution
+    )
+
+    behavior_result = evaluate_repair_behavior(
+        original_rules,
+        repaired_rules,
+        variable_ranges,
+        original_verification["consistency"]["conflicts"],
+        resolution=resolution,
+        activation_threshold=activation_threshold
+    )
+
+    effects = []
+
+    original_conflicts = (
+        original_verification["consistency"]["conflicts"]
+    )
+
+    repaired_conflicts = (
+        repaired_verification["consistency"]["conflicts"]
+    )
+
+    for remaining_region in remaining_regions:
+
+        rule_ids = tuple(remaining_region["rule_ids"])
+
+        original_related = _get_related_conflicts(
+            original_conflicts,
+            rule_ids
+        )
+
+        repaired_related = _get_related_conflicts(
+            repaired_conflicts,
+            rule_ids
+        )
+
+        original_primary = _get_primary_conflict_state(
+            original_conflicts,
+            rule_ids[0],
+            rule_ids[1]
+        )
+
+        repaired_primary = _get_primary_conflict_state(
+            repaired_conflicts,
+            rule_ids[0],
+            rule_ids[1]
+        )
+
+        region_behavior = _behavior_changes_in_rule_region(
+            original_rules,
+            behavior_result,
+            rule_ids,
+            activation_threshold=activation_threshold
+        )
+
+        diagnosis_changed = (
+            original_related != repaired_related
+        )
+
+        primary_conflict_changed = (
+            original_primary != repaired_primary
+        )
+
+        effects.append({
+            "remaining_region": remaining_region["name"],
+            "rule_ids": list(rule_ids),
+            "primary_conflict_before": original_primary,
+            "primary_conflict_after": repaired_primary,
+            "primary_conflict_changed": (
+                primary_conflict_changed
+            ),
+            "related_conflicts_before": original_related,
+            "related_conflicts_after": repaired_related,
+            "diagnosis_changed": diagnosis_changed,
+            "behavior_changed": (
+                region_behavior["behavior_changed"]
+            ),
+            "changed_point_count": (
+                region_behavior["changed_point_count"]
+            ),
+            "behavior_details": region_behavior
+        })
+
+    return {
+        "intervention": {
+            "target_region": target_region["name"],
+            "target_rule": target_region["target_rule"],
+            "action": "CHANGE_CONSEQUENT",
+            "correct_value": target_region["correct_value"]
+        },
+        "verification_before": original_verification,
+        "verification_after": repaired_verification,
+        "conflict_count_before": (
+            original_verification[
+                "consistency"
+            ]["conflict_count"]
+        ),
+        "conflict_count_after": (
+            repaired_verification[
+                "consistency"
+            ]["conflict_count"]
+        ),
+        "effects_on_remaining_regions": effects
+    }
+
+
+def run_multi_region_counterfactual_experiment(
+    case,
+    variable_ranges,
+    defect_regions,
+    activation_threshold=0.7,
+    resolution=50,
+    consistency_threshold=0.7,
+    completeness_resolution=30
+):
+    """
+    Runs controlled counterfactual repairs across three or more
+    defect regions.
+
+    For each defect region:
+        1. Repair that region only.
+        2. Keep every other defect unrepaired.
+        3. Measure structural, diagnostic, and behavioral effects
+           on every remaining defect region.
+    """
+
+    if len(defect_regions) < 3:
+        raise ValueError(
+            "At least three defect regions are required."
+        )
+
+    state_0 = verify_rule_base(
+        case["defective_rules"],
+        variable_ranges,
+        consistency_threshold=consistency_threshold,
+        completeness_resolution=completeness_resolution
+    )
+
+    states = {}
+
+    for target_region in defect_regions:
+
+        remaining_regions = [
+            region
+            for region in defect_regions
+            if region["name"] != target_region["name"]
+        ]
+
+        state_key = (
+            f"repair_{target_region['name']}"
+        )
+
+        states[state_key] = _run_multi_region_counterfactual(
+            case=case,
+            variable_ranges=variable_ranges,
+            target_region=target_region,
+            remaining_regions=remaining_regions,
+            activation_threshold=activation_threshold,
+            resolution=resolution,
+            consistency_threshold=consistency_threshold,
+            completeness_resolution=completeness_resolution
+        )
+
+    dependency_matrix = {}
+
+    for target_region in defect_regions:
+
+        state_key = (
+            f"repair_{target_region['name']}"
+        )
+
+        effects = states[
+            state_key
+        ]["effects_on_remaining_regions"]
+
+        dependency_matrix[
+            target_region["name"]
+        ] = {}
+
+        for effect in effects:
+
+            dependency_matrix[
+                target_region["name"]
+            ][
+                effect["remaining_region"]
+            ] = {
+                "diagnosis_changed": (
+                    effect["diagnosis_changed"]
+                ),
+                "behavior_changed": (
+                    effect["behavior_changed"]
+                ),
+                "changed_point_count": (
+                    effect["changed_point_count"]
+                ),
+                "dependency_detected": (
+                    effect["diagnosis_changed"]
+                    or
+                    effect["behavior_changed"]
+                )
+            }
+
+    return {
+        "case_id": case["benchmark_case"]["case_id"],
+        "state_0": {
+            "verification": state_0,
+            "conflict_count": (
+                state_0["consistency"]["conflict_count"]
+            )
+        },
+        "counterfactual_states": states,
+        "dependency_matrix": dependency_matrix
+    }
+
+def create_three_region_independent_experiment_case():
+    """
+    Creates a controlled three-defect configuration with
+    three spatially independent defect regions.
+
+    Region A:
+        temperature-low AND humidity-low
+
+    Region B:
+        temperature-medium AND humidity-medium
+
+    Region C:
+        temperature-high AND humidity-high
+
+    The six remaining fuzzy cells provide complete
+    interior coverage without introducing additional
+    duplicate rules in the defect regions.
+    """
+
+    temperature_low = TriangularFuzzySet(
+        "temperature_low",
+        0,
+        20,
+        40
+    )
+
+    temperature_medium = TriangularFuzzySet(
+        "temperature_medium",
+        30,
+        50,
+        70
+    )
+
+    temperature_high = TriangularFuzzySet(
+        "temperature_high",
+        60,
+        80,
+        100
+    )
+
+    humidity_low = TriangularFuzzySet(
+        "humidity_low",
+        0,
+        20,
+        40
+    )
+
+    humidity_medium = TriangularFuzzySet(
+        "humidity_medium",
+        30,
+        50,
+        70
+    )
+
+    humidity_high = TriangularFuzzySet(
+        "humidity_high",
+        60,
+        80,
+        100
+    )
+
+    clean_rules = [
+        # Region A: low x low
+        FuzzyRule(
+            "A1",
+            {
+                "temperature": temperature_low,
+                "humidity": humidity_low
+            },
+            "risk_medium"
+        ),
+        FuzzyRule(
+            "A2",
+            {
+                "temperature": temperature_low,
+                "humidity": humidity_low
+            },
+            "risk_medium"
+        ),
+
+        # Region B: medium x medium
+        FuzzyRule(
+            "B1",
+            {
+                "temperature": temperature_medium,
+                "humidity": humidity_medium
+            },
+            "risk_medium"
+        ),
+        FuzzyRule(
+            "B2",
+            {
+                "temperature": temperature_medium,
+                "humidity": humidity_medium
+            },
+            "risk_medium"
+        ),
+
+        # Region C: high x high
+        FuzzyRule(
+            "C1",
+            {
+                "temperature": temperature_high,
+                "humidity": humidity_high
+            },
+            "risk_medium"
+        ),
+        FuzzyRule(
+            "C2",
+            {
+                "temperature": temperature_high,
+                "humidity": humidity_high
+            },
+            "risk_medium"
+        ),
+
+        # Remaining six cells: complete coverage
+        FuzzyRule(
+            "D1",
+            {
+                "temperature": temperature_low,
+                "humidity": humidity_medium
+            },
+            "risk_medium"
+        ),
+        FuzzyRule(
+            "D2",
+            {
+                "temperature": temperature_low,
+                "humidity": humidity_high
+            },
+            "risk_medium"
+        ),
+        FuzzyRule(
+            "D3",
+            {
+                "temperature": temperature_medium,
+                "humidity": humidity_low
+            },
+            "risk_medium"
+        ),
+        FuzzyRule(
+            "D4",
+            {
+                "temperature": temperature_medium,
+                "humidity": humidity_high
+            },
+            "risk_medium"
+        ),
+        FuzzyRule(
+            "D5",
+            {
+                "temperature": temperature_high,
+                "humidity": humidity_low
+            },
+            "risk_medium"
+        ),
+        FuzzyRule(
+            "D6",
+            {
+                "temperature": temperature_high,
+                "humidity": humidity_medium
+            },
+            "risk_medium"
+        )
+    ]
+
+    defects = [
+        {
+            "target_rule": "A2",
+            "conflicting_consequent": "risk_high"
+        },
+        {
+            "target_rule": "B2",
+            "conflicting_consequent": "risk_low"
+        },
+        {
+            "target_rule": "C2",
+            "conflicting_consequent": "risk_high"
+        }
+    ]
+
+    expected_repairs = [
+        {
+            "target_rule": "A2",
+            "repair_action": "CHANGE_CONSEQUENT",
+            "correct_value": "risk_medium"
+        },
+        {
+            "target_rule": "B2",
+            "repair_action": "CHANGE_CONSEQUENT",
+            "correct_value": "risk_medium"
+        },
+        {
+            "target_rule": "C2",
+            "repair_action": "CHANGE_CONSEQUENT",
+            "correct_value": "risk_medium"
+        }
+    ]
+
+    return run_multi_defect_benchmark_case(
+        case_id="MD-5-THREE-INDEPENDENT",
+        clean_rules=clean_rules,
+        variable_ranges={
+            "temperature": (0, 100),
+            "humidity": (0, 100)
+        },
+        defects=defects,
+        expected_repairs=expected_repairs,
+        consistency_threshold=0.7,
+        completeness_resolution=100
+    )
