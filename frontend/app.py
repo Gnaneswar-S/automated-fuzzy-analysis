@@ -85,6 +85,36 @@ try:
 
     st.divider()
 
+    st.subheader("Rules")
+
+    rule_rows = []
+
+    for rule in rules:
+        row = {
+            "Rule": rule.rule_id,
+        }
+
+        for variable in input_variables:
+            fuzzy_set = rule.antecedent.get(variable)
+            row[variable] = (
+                fuzzy_set.name
+                if fuzzy_set is not None
+                else "—"
+            )
+
+        row["Consequent"] = rule.consequent
+        row["Weight"] = rule.weight
+
+        rule_rows.append(row)
+
+    st.dataframe(
+        rule_rows,
+        width="stretch",
+        hide_index=True,
+    )
+
+    st.divider()
+
     if st.button("Run Verification", type="primary"):
         verification = verify_rule_base(
             rules,
