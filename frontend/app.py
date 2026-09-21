@@ -170,6 +170,17 @@ try:
             st.subheader("Completeness")
             st.write(completeness["status"])
 
+        if consistency["conflicts"]:
+            st.subheader("Detected conflicts")
+            st.json(consistency["conflicts"])
+        else:
+            st.info("No potential conflicts were detected.")
+
+        if completeness["uncovered_regions"]:
+            st.subheader("Uncovered regions")
+            st.json(completeness["uncovered_regions"])
+        else:
+            st.info("No uncovered regions were detected.")
 except Exception as exc:
     st.error(
         "Unable to load the Inverted Pendulum M1 rule base: "
