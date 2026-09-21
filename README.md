@@ -799,9 +799,135 @@ The implementation includes:
 
 * regression validation across MD-2 through MD-6.
 
-The complete implementation has been validated through regression tests and controlled experiment execution.
+The complete implementation has been validated through regression execution and controlled experiment execution.
 
 ---
+
+## 23. External JFML Validation
+
+The framework includes an external numerical validation against the independently sourced **JFML v1.3** implementation using the official JFML example:
+
+`Examples/XMLFiles/InvertedPendulumMamdani1.xml`
+
+The validation is deliberately limited to the inference semantics established for this selected Mamdani system. It is not intended to claim general equivalence with arbitrary JFML systems.
+
+### External system
+
+The selected rule base contains:
+
+- 19 rules
+- 2 input variables: `Angle` and `ChangeAngle`
+- 1 output variable: `Force`
+- input and output domains: `0` to `255`
+- Mamdani inference
+- `MIN` rule activation
+- `MIN` antecedent aggregation
+- `MAX` output accumulation
+- Center of Gravity (`COG`) defuzzification
+- triangular and trapezoidal membership functions
+
+The JFML implementation was inspected directly from `JFML-v1.3.jar` to establish the inference and defuzzification behavior used by this validation.
+
+For the continuous COG defuzzifier, JFML uses 2000 regular discretization points across the output domain and additionally inserts membership-function breakpoint values into the discretization map. For this rule base, the resulting output discretization contains 2006 points.
+
+### Independent reference implementation
+
+An independent numerical implementation is provided in:
+
+`core/experiments/jfml_independent_reference.py`
+
+It does not import JFML or invoke the JFML Java implementation. It reproduces only the established semantics required for the selected Inverted Pendulum M1 system, using NumPy `float32` arithmetic.
+
+The independent implementation therefore provides a separate numerical calculation against which the external JFML results can be compared.
+
+### Systematic validation
+
+The validation fixture:
+
+`core/experiments/jfml_validation_sweep.csv`
+
+contains 289 JFML evaluations over a 17 x 17 input grid spanning the complete input domain.
+
+The comparison script:
+
+`core/experiments/compare_jfml_validation.py`
+
+uses a **predeclared absolute-error tolerance of `1e-5`**.
+
+Observed results:
+
+| Metric | Result |
+|---|---:|
+| JFML evaluations | 289 |
+| Independent evaluations | 289 |
+| Maximum absolute error | `4.92178742206e-10` |
+| Mean absolute error | `2.62975406925e-10` |
+| Comparisons within tolerance | 289 |
+| Comparisons above tolerance | 0 |
+| NaN mismatches | 0 |
+
+All 289 systematic evaluations agreed within the predeclared tolerance.
+
+### Boundary and transition validation
+
+A separate fixture:
+
+`core/experiments/jfml_boundary_sweep.csv`
+
+evaluates the Cartesian product of the principal membership-function transition and domain-boundary values:
+
+`0, 48, 88, 128, 168, 208, 255`
+
+This produces 49 evaluations.
+
+The comparison script:
+
+`core/experiments/compare_jfml_boundary.py`
+
+uses the same predeclared absolute-error tolerance of `1e-5`.
+
+Observed results:
+
+| Metric | Result |
+|---|---:|
+| JFML evaluations | 49 |
+| Independent evaluations | 49 |
+| Maximum absolute error | `3.67180064131e-10` |
+| Mean absolute error | `2.60321107074e-10` |
+| Comparisons within tolerance | 49 |
+| Comparisons above tolerance | 0 |
+| NaN mismatches | 0 |
+
+All 49 boundary/transition evaluations agreed within the predeclared tolerance.
+
+### Reproducibility
+
+The validation artifacts are version-controlled in this repository:
+
+- `core/experiments/jfml_independent_reference.py`
+- `core/experiments/jfml_validation_sweep.csv`
+- `core/experiments/jfml_boundary_sweep.csv`
+- `core/experiments/compare_jfml_validation.py`
+- `core/experiments/compare_jfml_boundary.py`
+- `requirements.txt`
+
+The Java JFML library itself is not vendored into this repository. The validation therefore records the external reference results as reproducible fixtures while keeping the independent implementation separate from the external implementation.
+
+### Scope of the claim
+
+This validation supports numerical agreement between the independent implementation and JFML for the selected **Inverted Pendulum Mamdani M1** rule base and the tested input points.
+
+It does not establish equivalence for:
+
+- arbitrary JFML rule bases,
+- unsupported JFML membership-function types,
+- unsupported inference operators,
+- TSK or Tsukamoto systems,
+- circular membership-function definitions,
+- alternative accumulation operators, or
+- other defuzzification methods.
+
+The external validation is therefore treated as a **system-specific semantic validation**, rather than as a claim of general JFML compatibility.
 
 ## License
 
