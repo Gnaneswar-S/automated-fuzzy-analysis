@@ -6,6 +6,10 @@ from core.experiments.external_inverted_pendulum_adapter import (
     load_inverted_pendulum_rule_base,
 )
 from core.verification.verification import verify_rule_base
+from core.diagnosis.localization import (
+    calculate_rule_suspicion_scores,
+    locate_conflict_regions,
+)
 
 
 st.set_page_config(
@@ -181,6 +185,43 @@ try:
             st.json(completeness["uncovered_regions"])
         else:
             st.info("No uncovered regions were detected.")
+
+    st.divider()
+
+    st.header("Localization")
+
+    if st.button("Run Localization"):
+        suspicion_scores = calculate_rule_suspicion_scores(
+            rules,
+            variable_ranges,
+        )
+
+        conflict_regions = locate_conflict_regions(
+            rules,
+            variable_ranges,
+        )
+
+        st.session_state["suspicion_scores"] = suspicion_scores
+        st.session_state["conflict_regions"] = conflict_regions
+
+    if "suspicion_scores" in st.session_state:
+        suspicion_scores = st.session_state["suspicion_scores"]
+        conflict_regions = st.session_state["conflict_regions"]
+
+        st.subheader("Rule Suspicion Scores")
+        st.dataframe(
+            suspicion_scores,
+            width="stretch",
+            hide_index=True,
+        )
+
+        st.subheader("Localized Conflict Regions")
+        st.metric("Regions identified", len(conflict_regions))
+
+        if conflict_regions:
+            st.json(conflict_regions)
+        else:
+            st.info("No conflict regions were localized.")
 except Exception as exc:
     st.error(
         "Unable to load the Inverted Pendulum M1 rule base: "
