@@ -7,6 +7,8 @@ from core.experiments.external_inverted_pendulum_adapter import (
 )
 from core.verification.verification import verify_rule_base
 from core.diagnosis.diagnosis import diagnose_conflicts
+from core.repair.repair import generate_repair_candidates
+from core.repair.ranking import rank_repair_candidates
 from core.diagnosis.localization import (
     calculate_rule_suspicion_scores,
     locate_conflict_regions,
@@ -257,6 +259,71 @@ try:
             )
         else:
             st.info("No conflicts require diagnosis.")
+
+    st.divider()
+
+    st.header("Repair")
+
+    if st.button("Generate Repair Candidates"):
+        if "verification" not in st.session_state:
+            st.warning("Run Verification before generating Repair Candidates.")
+        else:
+            conflicts = st.session_state["verification"]["consistency"]["conflicts"]
+
+            if not conflicts:
+                st.session_state["repair_candidates"] = []
+                st.session_state["ranked_repair_candidates"] = []
+            else:
+                repair_candidates = generate_repair_candidates(
+                    rules,
+                    conflicts,
+                )
+
+                ranked_candidates = rank_repair_candidates(
+                    rules,
+                    repair_candidates,
+                    variable_ranges,
+                )
+
+                st.session_state["repair_candidates"] = repair_candidates
+                st.session_state["ranked_repair_candidates"] = ranked_candidates
+
+    if "ranked_repair_candidates" in st.session_state:
+        ranked_candidates = st.session_state["ranked_repair_candidates"]
+
+        if ranked_candidates:
+            st.subheader("Repair Candidates")
+
+            repair_rows = []
+
+            for item in ranked_candidates:
+                candidate = item["candidate"]
+
+                repair_rows.append({
+                    "conflict": candidate["conflict"],
+                    "action": candidate["action"],
+                    "target_rule": candidate["target_rule"],
+                    "new_consequent": candidate.get("new_consequent", ""),
+                    "ranking_score": item["score"],
+                    "conflicts_before": item["conflicts_before"],
+                    "conflicts_after": item["conflicts_after"],
+                    "completeness_before": item["completeness_before"],
+                    "completeness_after": item["completeness_after"],
+                    "repair_success": item["repair_success"],
+                })
+
+            st.dataframe(
+                repair_rows,
+                width="stretch",
+                hide_index=True,
+            )
+
+            st.info(
+                "Repair candidates are proposals only. "
+                "No repair is automatically applied."
+            )
+        else:
+            st.info("No repair candidates are available.")
 
 except Exception as exc:
     st.error(
