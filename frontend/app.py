@@ -1,9 +1,12 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 import streamlit as st
 
 from core.experiments.external_inverted_pendulum_adapter import (
     load_inverted_pendulum_rule_base,
+)
+from core.experiments.multi_defect_experiment import (
+    create_three_region_independent_experiment_case,
 )
 from core.verification.verification import verify_rule_base
 from core.diagnosis.diagnosis import diagnose_conflicts
@@ -18,53 +21,137 @@ from core.diagnosis.localization import (
 
 st.set_page_config(
     page_title="Automated Fuzzy Rule-Base Analysis",
-    page_icon="🔬",
+    page_icon=chr(0x1F52C),
     layout="wide",
 )
 
 st.title("Automated Fuzzy Rule-Base Analysis")
 st.caption("Research Analysis Platform")
 
+st.header("Analysis Mode")
+
+analysis_mode = st.selectbox(
+    "Select rule-base source",
+    [
+        "External Inverted Pendulum M1",
+        "Controlled Benchmark - MD-5",
+    ],
+)
+
+if st.session_state.get("_analysis_mode") != analysis_mode:
+    analysis_keys = [
+        "rules",
+        "metadata",
+        "variable_ranges",
+        "verification",
+        "suspicion_scores",
+        "conflict_regions",
+        "diagnosis",
+        "repair_candidates",
+        "ranked_repair_candidates",
+        "repaired_rules",
+        "repaired_verification",
+    ]
+
+    for key in analysis_keys:
+        st.session_state.pop(key, None)
+
+    st.session_state["_analysis_mode"] = analysis_mode
+
+st.divider()
+
 st.header("Rule Base")
 
 try:
-    xml_path = (
-        Path.home()
-        / "Desktop"
-        / "Documents"
-        / "fuzzy_external_validation"
-        / "JFML"
-        / "Examples"
-        / "XMLFiles"
-        / "InvertedPendulumMamdani1.xml"
-    )
-
-    rules, metadata = load_inverted_pendulum_rule_base(
-        str(xml_path)
-    )
-
-    variable_ranges = {
-        variable: (
-            details["domain_left"],
-            details["domain_right"],
+    if analysis_mode == "External Inverted Pendulum M1":
+        xml_path = (
+            Path.home()
+            / "Desktop"
+            / "Documents"
+            / "fuzzy_external_validation"
+            / "JFML"
+            / "Examples"
+            / "XMLFiles"
+            / "InvertedPendulumMamdani1.xml"
         )
-        for variable, details in metadata["variables"].items()
-        if details["type"] == "input"
-    }
 
-    input_variables = [
-        variable
-        for variable, details in metadata["variables"].items()
-        if details["type"] == "input"
-    ]
+        rules, metadata = load_inverted_pendulum_rule_base(
+            str(xml_path)
+        )
 
-    output_variables = [
-        variable
-        for variable, details in metadata["variables"].items()
-        if details["type"] == "output"
-    ]
+        variable_ranges = {
+            variable: (
+                details["domain_left"],
+                details["domain_right"],
+            )
+            for variable, details in metadata["variables"].items()
+            if details["type"] == "input"
+        }
 
-    st.subheader("Inverted Pendulum Mamdani M1")
+        input_variables = [
+            variable
+            for variable, details in metadata["variables"].items()
+            if details["type"] == "input"
+        ]
+
+        output_variables = [
+            variable
+            for variable, details in metadata["variables"].items()
+            if details["type"] == "output"
+        ]
+
+        rule_base_title = "Inverted Pendulum Mamdani M1"
+
+        st.info(
+            "External validation rule base loaded from the JFML "
+            "Inverted Pendulum Mamdani M1 model."
+        )
+
+    else:
+        benchmark_case = create_three_region_independent_experiment_case()
+
+        rules = benchmark_case["defective_rules"]
+
+        variable_ranges = {
+            "temperature": (0, 100),
+            "humidity": (0, 100),
+        }
+
+        input_variables = [
+            "temperature",
+            "humidity",
+        ]
+
+        output_variables = ["risk"]
+
+        metadata = {
+            "source": "MD-5 controlled three-region independent benchmark",
+            "variables": {
+                "temperature": {
+                    "type": "input",
+                    "domain_left": 0,
+                    "domain_right": 100,
+                },
+                "humidity": {
+                    "type": "input",
+                    "domain_left": 0,
+                    "domain_right": 100,
+                },
+                "risk": {
+                    "type": "output",
+                },
+            },
+        }
+
+        rule_base_title = "Controlled Benchmark - MD-5"
+
+        st.info(
+            "Controlled benchmark with three independent injected "
+            "consequent conflicts. The benchmark ground truth is "
+            "preserved separately from the repair-ranking heuristic."
+        )
+
+    st.subheader(rule_base_title)
 
     col1, col2, col3 = st.columns(3)
 
@@ -79,8 +166,8 @@ try:
 
     domains = [
         f"{variable}: "
-        f"{metadata['variables'][variable]['domain_left']} – "
-        f"{metadata['variables'][variable]['domain_right']}"
+        f"{variable_ranges[variable][0]} - "
+        f"{variable_ranges[variable][1]}"
         for variable in input_variables
     ]
 
@@ -90,6 +177,16 @@ try:
 
     st.write("**Output variables**")
     st.write(", ".join(output_variables))
+
+    if analysis_mode == "Controlled Benchmark - MD-5":
+        ground_truth = benchmark_case["benchmark_case"]["ground_truth"]
+
+        st.write("**Benchmark ground truth**")
+        st.dataframe(
+            ground_truth,
+            width="stretch",
+            hide_index=True,
+        )
 
     st.divider()
 
@@ -107,7 +204,7 @@ try:
             row[variable] = (
                 fuzzy_set.name
                 if fuzzy_set is not None
-                else "—"
+                else "-"
             )
 
         row["Consequent"] = rule.consequent
@@ -226,6 +323,7 @@ try:
             st.json(conflict_regions)
         else:
             st.info("No conflict regions were localized.")
+
     st.divider()
 
     st.header("Diagnosis")
@@ -267,7 +365,9 @@ try:
 
     if st.button("Generate Repair Candidates"):
         if "verification" not in st.session_state:
-            st.warning("Run Verification before generating Repair Candidates.")
+            st.warning(
+                "Run Verification before generating Repair Candidates."
+            )
         else:
             conflicts = st.session_state["verification"]["consistency"]["conflicts"]
 
@@ -399,6 +499,6 @@ try:
 
 except Exception as exc:
     st.error(
-        "Unable to load the Inverted Pendulum M1 rule base: "
+        "Unable to load the selected rule base: "
         f"{exc}"
     )
