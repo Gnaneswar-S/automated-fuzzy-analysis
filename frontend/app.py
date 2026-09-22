@@ -6,6 +6,7 @@ from core.experiments.external_inverted_pendulum_adapter import (
     load_inverted_pendulum_rule_base,
 )
 from core.verification.verification import verify_rule_base
+from core.diagnosis.diagnosis import diagnose_conflicts
 from core.diagnosis.localization import (
     calculate_rule_suspicion_scores,
     locate_conflict_regions,
@@ -222,6 +223,41 @@ try:
             st.json(conflict_regions)
         else:
             st.info("No conflict regions were localized.")
+    st.divider()
+
+    st.header("Diagnosis")
+
+    if st.button("Run Diagnosis"):
+        if "verification" not in st.session_state:
+            st.warning("Run Verification before Diagnosis.")
+        elif "conflict_regions" not in st.session_state:
+            st.warning("Run Localization before Diagnosis.")
+        else:
+            conflicts = st.session_state["verification"]["consistency"]["conflicts"]
+            conflict_regions = st.session_state["conflict_regions"]
+
+            diagnosis = diagnose_conflicts(
+                rules,
+                conflicts,
+                conflict_regions,
+            )
+
+            st.session_state["diagnosis"] = diagnosis
+
+    if "diagnosis" in st.session_state:
+        diagnosis = st.session_state["diagnosis"]
+
+        st.subheader("Conflict Diagnosis")
+
+        if diagnosis:
+            st.dataframe(
+                diagnosis,
+                width="stretch",
+                hide_index=True,
+            )
+        else:
+            st.info("No conflicts require diagnosis.")
+
 except Exception as exc:
     st.error(
         "Unable to load the Inverted Pendulum M1 rule base: "
