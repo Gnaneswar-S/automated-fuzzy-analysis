@@ -9,6 +9,7 @@ from core.verification.verification import verify_rule_base
 from core.diagnosis.diagnosis import diagnose_conflicts
 from core.repair.repair import generate_repair_candidates
 from core.repair.ranking import rank_repair_candidates
+from core.repair.repair_engine import apply_repair_candidate
 from core.diagnosis.localization import (
     calculate_rule_suspicion_scores,
     locate_conflict_regions,
@@ -296,10 +297,11 @@ try:
 
             repair_rows = []
 
-            for item in ranked_candidates:
+            for index, item in enumerate(ranked_candidates):
                 candidate = item["candidate"]
 
                 repair_rows.append({
+                    "candidate": index + 1,
                     "conflict": candidate["conflict"],
                     "action": candidate["action"],
                     "target_rule": candidate["target_rule"],
@@ -322,8 +324,78 @@ try:
                 "Repair candidates are proposals only. "
                 "No repair is automatically applied."
             )
+
+            selected_index = st.selectbox(
+                "Select a repair candidate",
+                options=list(range(len(ranked_candidates))),
+                format_func=lambda index: (
+                    f"Candidate {index + 1}: "
+                    f"{ranked_candidates[index]['candidate']['action']} "
+                    f"{ranked_candidates[index]['candidate']['target_rule']} "
+                    f"({ranked_candidates[index]['candidate']['conflict']})"
+                ),
+            )
+
+            selected_item = ranked_candidates[selected_index]
+            selected_candidate = selected_item["candidate"]
+
+            st.subheader("Selected Repair")
+
+            st.write(selected_candidate["description"])
+
+            if st.button("Apply Selected Repair"):
+                repaired_rules = apply_repair_candidate(
+                    rules,
+                    selected_candidate,
+                )
+
+                repaired_verification = verify_rule_base(
+                    repaired_rules,
+                    variable_ranges,
+                )
+
+                st.session_state["repaired_rules"] = repaired_rules
+                st.session_state["repaired_verification"] = repaired_verification
+
         else:
             st.info("No repair candidates are available.")
+
+    if "repaired_verification" in st.session_state:
+        repaired_verification = st.session_state["repaired_verification"]
+
+        st.subheader("Re-verification")
+
+        before_verification = st.session_state["verification"]
+
+        before_conflicts = before_verification["consistency"]["conflict_count"]
+        after_conflicts = repaired_verification["consistency"]["conflict_count"]
+
+        before_completeness = before_verification["completeness"]["score"]
+        after_completeness = repaired_verification["completeness"]["score"]
+
+        st.metric("Conflicts before repair", before_conflicts)
+        st.metric("Conflicts after repair", after_conflicts)
+        st.metric("Completeness before repair", f"{before_completeness:.1f}%")
+        st.metric("Completeness after repair", f"{after_completeness:.1f}%")
+
+        st.write(
+            "Repaired rule base status:",
+            repaired_verification["overall_status"],
+        )
+
+        if (
+            after_conflicts < before_conflicts
+            and after_completeness >= before_completeness
+        ):
+            st.success(
+                "The selected repair reduced detected conflicts "
+                "without reducing completeness."
+            )
+        else:
+            st.warning(
+                "The selected repair did not satisfy both "
+                "conflict reduction and completeness preservation."
+            )
 
 except Exception as exc:
     st.error(
