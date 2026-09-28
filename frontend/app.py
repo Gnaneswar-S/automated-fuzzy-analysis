@@ -64,14 +64,11 @@ st.header("Rule Base")
 
 try:
     if analysis_mode == "External Inverted Pendulum M1":
+        repo_root = Path(__file__).resolve().parents[1]
         xml_path = (
-            Path.home()
-            / "Desktop"
-            / "Documents"
-            / "fuzzy_external_validation"
-            / "JFML"
-            / "Examples"
-            / "XMLFiles"
+            repo_root
+            / "data"
+            / "external_validation"
             / "InvertedPendulumMamdani1.xml"
         )
 
