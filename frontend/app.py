@@ -10,6 +10,9 @@ import streamlit as st
 from core.experiments.external_inverted_pendulum_adapter import (
     load_inverted_pendulum_rule_base,
 )
+from core.experiments.custom_rule_base_adapter import (
+    load_custom_rule_base,
+)
 from core.experiments.multi_defect_experiment import (
     create_three_region_independent_experiment_case,
 )
@@ -40,6 +43,7 @@ analysis_mode = st.selectbox(
     [
         "External Inverted Pendulum M1",
         "Controlled Benchmark - MD-5",
+        "Custom Rule Base",
     ],
 )
 
@@ -107,6 +111,98 @@ try:
         st.info(
             "External validation rule base loaded from the JFML "
             "Inverted Pendulum Mamdani M1 model."
+        )
+
+    elif analysis_mode == "Custom Rule Base":
+        custom_definition = {
+            "variables": {
+                "temperature": {
+                    "type": "input",
+                    "domain_left": 0,
+                    "domain_right": 100,
+                    "sets": {
+                        "low": {
+                            "type": "triangular",
+                            "parameters": [0, 25, 50],
+                        },
+                        "medium": {
+                            "type": "triangular",
+                            "parameters": [25, 50, 75],
+                        },
+                        "high": {
+                            "type": "triangular",
+                            "parameters": [50, 75, 100],
+                        },
+                    },
+                },
+                "humidity": {
+                    "type": "input",
+                    "domain_left": 0,
+                    "domain_right": 100,
+                    "sets": {
+                        "low": {
+                            "type": "triangular",
+                            "parameters": [0, 25, 50],
+                        },
+                        "high": {
+                            "type": "triangular",
+                            "parameters": [50, 75, 100],
+                        },
+                    },
+                },
+                "risk": {
+                    "type": "output",
+                    "sets": {
+                        "low": {
+                            "type": "triangular",
+                            "parameters": [0, 25, 50],
+                        },
+                        "high": {
+                            "type": "triangular",
+                            "parameters": [50, 75, 100],
+                        },
+                    },
+                },
+            },
+            "rules": [
+                {
+                    "rule_id": "R1",
+                    "antecedent": {
+                        "temperature": "low",
+                        "humidity": "low",
+                    },
+                    "consequent": "risk_low",
+                },
+                {
+                    "rule_id": "R2",
+                    "antecedent": {
+                        "temperature": "high",
+                        "humidity": "high",
+                    },
+                    "consequent": "risk_high",
+                },
+            ],
+        }
+
+        rules, metadata = load_custom_rule_base(
+            custom_definition
+        )
+
+        variable_ranges = {
+            variable: (
+                details["domain_left"],
+                details["domain_right"],
+            )
+            for variable, details in metadata["variables"].items()
+            if details["type"] == "input"
+        }
+
+        input_variables = metadata["input_variables"]
+        output_variables = metadata["output_variables"]
+        rule_base_title = "Custom Rule Base"
+
+        st.info(
+            "Custom rule base loaded through the native rule-base adapter."
         )
 
     else:
