@@ -5,8 +5,8 @@ repo_root = Path(__file__).resolve().parents[1]
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
+import json
 import streamlit as st
-
 from core.experiments.external_inverted_pendulum_adapter import (
     load_inverted_pendulum_rule_base,
 )
@@ -114,7 +114,7 @@ try:
         )
 
     elif analysis_mode == "Custom Rule Base":
-        custom_definition = {
+        default_custom_definition = {
             "variables": {
                 "temperature": {
                     "type": "input",
@@ -184,9 +184,80 @@ try:
             ],
         }
 
-        rules, metadata = load_custom_rule_base(
-            custom_definition
+        if "custom_definition_text" not in st.session_state:
+            st.session_state["custom_definition_text"] = json.dumps(
+                default_custom_definition,
+                indent=2,
+            )
+
+        st.subheader("Rule Base Editor")
+
+        st.caption(
+            "Edit the custom rule-base definition as JSON. "
+            "The existing native adapter validates the definition "
+            "before it enters the analysis pipeline."
         )
+
+        custom_definition_text = st.text_area(
+            "Custom rule-base definition",
+            value=st.session_state["custom_definition_text"],
+            height=500,
+        )
+
+        st.session_state["custom_definition_text"] = custom_definition_text
+
+        if st.button("Load Custom Rule Base", type="primary"):
+            try:
+                custom_definition = json.loads(
+                    custom_definition_text
+                )
+
+                rules, metadata = load_custom_rule_base(
+                    custom_definition
+                )
+
+                st.session_state["custom_rules"] = rules
+                st.session_state["custom_metadata"] = metadata
+                st.session_state["custom_definition_valid"] = True
+
+                analysis_keys = [
+                    "verification",
+                    "suspicion_scores",
+                    "conflict_regions",
+                    "diagnosis",
+                    "repair_candidates",
+                    "ranked_repair_candidates",
+                    "repaired_rules",
+                    "repaired_verification",
+                ]
+
+                for key in analysis_keys:
+                    st.session_state.pop(key, None)
+
+                st.success(
+                    "Custom rule base loaded and validated successfully."
+                )
+
+            except (json.JSONDecodeError, ValueError) as exc:
+                st.session_state["custom_definition_valid"] = False
+                st.error(
+                    f"Custom rule-base validation failed: {exc}"
+                )
+
+        if "custom_rules" not in st.session_state:
+            custom_definition = default_custom_definition
+
+            rules, metadata = load_custom_rule_base(
+                custom_definition
+            )
+        elif st.session_state.get(
+            "custom_definition_valid",
+            False,
+        ):
+            rules = st.session_state["custom_rules"]
+            metadata = st.session_state["custom_metadata"]
+        else:
+            st.stop()
 
         variable_ranges = {
             variable: (
@@ -202,9 +273,9 @@ try:
         rule_base_title = "Custom Rule Base"
 
         st.info(
-            "Custom rule base loaded through the native rule-base adapter."
+            "Custom rule base is processed through the native "
+            "rule-base adapter."
         )
-
     else:
         benchmark_case = create_three_region_independent_experiment_case()
 
@@ -312,6 +383,47 @@ try:
 
     st.dataframe(
         rule_rows,
+        width="stretch",
+        hide_index=True,
+    )
+
+    st.divider()
+
+    st.subheader("Numerical Inputs")
+
+    input_values = {}
+
+    for variable in input_variables:
+        domain_left, domain_right = variable_ranges[variable]
+
+        input_values[variable] = st.number_input(
+            variable,
+            min_value=float(domain_left),
+            max_value=float(domain_right),
+            value=float((domain_left + domain_right) / 2),
+            key=f"numerical_input_{variable}",
+        )
+
+    st.session_state["input_values"] = input_values
+
+    st.subheader("Rule Activations")
+
+    activation_rows = []
+
+    for rule in rules:
+        activation_rows.append(
+            {
+                "Rule": rule.rule_id,
+                "Consequent": rule.consequent,
+                "Activation": round(
+                    rule.membership(input_values),
+                    6,
+                ),
+            }
+        )
+
+    st.dataframe(
+        activation_rows,
         width="stretch",
         hide_index=True,
     )
@@ -449,11 +561,32 @@ try:
         st.subheader("Conflict Diagnosis")
 
         if diagnosis:
+            diagnosis_rows = []
+
+            for item in diagnosis:
+                diagnosis_rows.append(
+                    {
+                        "Rule 1": item["rule_1"],
+                        "Rule 2": item["rule_2"],
+                        "Conflict Score": item["conflict_score"],
+                        "Consequent 1": item["consequent_1"],
+                        "Consequent 2": item["consequent_2"],
+                        "Reason": item["reason"],
+                        "Conflict Region Count": item["conflict_region_count"],
+                        "Severity": item["severity"],
+                    }
+                )
+
             st.dataframe(
-                diagnosis,
+                diagnosis_rows,
                 width="stretch",
                 hide_index=True,
             )
+
+            st.write("**Conflict Region Details**")
+
+            for item in diagnosis:
+                st.json(item["conflict_regions"])
         else:
             st.info("No conflicts require diagnosis.")
 
