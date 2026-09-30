@@ -667,7 +667,34 @@ run_multi_region_counterfactual_experiment()
 
 ---
 
-# 19. Reproducibility Parameters
+# 19. Deployment and Reproduction
+
+The research frontend is provided as a Streamlit application on the `frontend-v1` branch.
+
+To run the frontend locally from the repository root:
+
+```powershell
+.\venv\Scripts\python.exe -m streamlit run .\frontend\app.py
+```
+
+The application provides:
+
+- Custom rule-base JSON editing and validation,
+- numerical input controls derived from the selected rule base,
+- rule activation inspection,
+- consistency and completeness verification,
+- conflict localization,
+- explainable diagnosis,
+- repair candidate generation,
+- repair selection and re-verification.
+
+The frontend reuses the existing core analysis APIs and the native `FuzzyRule` representation. The custom rule-base adapter translates the editable definition into the same rule representation used by the existing analysis pipeline.
+
+The frontend should be interpreted as a research demonstration interface. The underlying experimental results and frozen research baseline remain independent of the frontend.
+
+---
+
+# 20. Reproducibility Parameters
 
 Important experimental parameters include:
 
@@ -691,7 +718,7 @@ Therefore reported numerical results should always be interpreted together with 
 
 ---
 
-# 20. Limitations
+# 21. Limitations
 
 The current framework has several important limitations.
 
@@ -721,7 +748,7 @@ Observed dependency is measured under controlled repair interventions. It should
 
 ---
 
-# 21. Research Contribution
+# 22. Research Contribution
 
 The primary contribution of this project is an integrated and reproducible framework connecting:
 
@@ -769,7 +796,7 @@ Individual components such as fuzzy-set similarity, conflict detection, activati
 
 ---
 
-# 22. Current Status
+# 23. Current Status
 
 The implementation includes:
 
@@ -803,7 +830,7 @@ The complete implementation has been validated through regression execution and 
 
 ---
 
-## 23. External JFML Validation
+## 24. External JFML Validation
 
 The framework includes an external numerical validation against the independently sourced **JFML v1.3** implementation using the official JFML example:
 
