@@ -48,7 +48,8 @@ def evaluate_repair_candidate(
     variable_ranges,
     consistency_threshold=0.7,
     completeness_resolution=100,
-    activation_threshold=0.0
+    activation_threshold=0.0,
+    before_result=None
 ):
     """
     Applies a repair candidate to a copied rule base
@@ -59,13 +60,16 @@ def evaluate_repair_candidate(
     # BEFORE REPAIR
     # -----------------------------------------
 
-    before = verify_rule_base(
-        rules,
-        variable_ranges,
-        consistency_threshold=consistency_threshold,
-        completeness_resolution=completeness_resolution,
-        activation_threshold=activation_threshold
-    )
+    if before_result is None:
+        before = verify_rule_base(
+            rules,
+            variable_ranges,
+            consistency_threshold=consistency_threshold,
+            completeness_resolution=completeness_resolution,
+            activation_threshold=activation_threshold
+        )
+    else:
+        before = before_result
 
     # -----------------------------------------
     # APPLY REPAIR

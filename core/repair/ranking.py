@@ -1,3 +1,4 @@
+from ..verification.verification import verify_rule_base
 def calculate_repair_score(
     candidate,
     before_result,
@@ -139,6 +140,13 @@ def rank_repair_candidates(
 
     ranked_candidates = []
 
+    before_result = verify_rule_base(
+        rules,
+        variable_ranges,
+        consistency_threshold=consistency_threshold,
+        completeness_resolution=completeness_resolution
+    )
+
     for candidate in candidates:
 
         evaluation = evaluate_repair_candidate(
@@ -146,7 +154,8 @@ def rank_repair_candidates(
             candidate,
             variable_ranges,
             consistency_threshold=consistency_threshold,
-            completeness_resolution=completeness_resolution
+            completeness_resolution=completeness_resolution,
+            before_result=before_result
         )
 
         score_details = calculate_repair_score(
