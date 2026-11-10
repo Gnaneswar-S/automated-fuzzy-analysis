@@ -13,7 +13,7 @@ The audit used the repository archive already present at `Automated_fuzzy_analys
 - Starting working tree: clean (`main...origin/main`).
 - Frozen tag: `v1.0-research-complete` exists locally at commit `a5fa1ec3fbaf68b5f0da97ffa3e63849cee596fa` (tag object `62169c3c6447b6f73cab5a353ef49d3e7840290f`), dated 2026-09-21. It is an ancestor of `main`; `main` adds frontend and deployment work. The tag and its history were not changed.
 - `frontend-v1` is not a current local or remote branch, and the GitHub branch search returned only `main`. Its work is preserved in the merge commit's first-parent ancestry and feature commits, including the Streamlit dashboard and custom rule-base editor.
-- A new local branch, `research/novelty`, was created from the clean `main` commit for continuation. It has not been pushed.
+- A new branch, `research/novelty`, was created from the clean `main` commit for continuation. It was subsequently pushed with the Day 1 audit commits.
 - No new backup reference was needed because the frozen release tag already provides a recoverable reference and no baseline history is being rewritten.
 
 ## Repository structure and architecture
@@ -65,4 +65,4 @@ The README also documents the 4-rule demonstration. Its first listed repair cand
 
 ## Initial implementation boundary
 
-The repository is on local branch `research/novelty` at the original `main` tip. This audit is the first bounded change. No algorithm, benchmark protocol, frozen tag, application module, external validation fixture, or existing result was changed. The next step is literature review and research-gap documentation, followed by a reviewable plan before any substantial algorithm change. The first report push/PR and scheduled workflow are not configured or active.
+The repository is on branch `research/novelty` with the Day 1 audit commits pushed. No algorithm, benchmark protocol, frozen tag, application module, external validation fixture, or existing result was changed. The GitHub integration rejected PR creation with HTTP 403, the local GitHub CLI is unavailable, and the available browser session was signed out; therefore no PR is open yet. The scheduled workflow is not configured or active. The next step is literature review and research-gap documentation, followed by a reviewable plan before any substantial algorithm change.
