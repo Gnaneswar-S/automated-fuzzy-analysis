@@ -1,6 +1,6 @@
 # Day 01 — Repository audit and reproducibility
 
-**Date/time:** 2026-11-11, 00:32 IST (execution began 2026-11-10 19:02 UTC)
+**Date/time:** 2026-11-11, 00:46 IST (execution began 2026-11-10 19:02 UTC)
 **Branch:** `research/novelty`
 **Commit at report generation:** `2f08ab5af3eccc63c6699e9d54d70ecec4a7f4cd` (baseline audit documentation)
 
@@ -20,10 +20,13 @@ Can the current GitHub state and supplied local repository snapshot be identifie
 - Created `docs/BASELINE_AUDIT.md` and local branch `research/novelty` from the clean starting commit.
 - Ran the application demonstration and both committed JFML comparison scripts.
 - Checked for a test suite and attempted pytest; pytest is absent from the included environment and there are no tracked tests.
+- Began a preliminary literature screen and created a source matrix and provisional research-gap comparison. This is preparatory work only; it does not complete the Day 2 full-text review or establish novelty.
 - Compared the user-specified 12-rule benchmark description with the available experiment code. The closest three-region constructor currently defines 14 rules, and the repository does not contain a matching result artifact for the claimed 108 sampled points or six-candidate `0.7333` tie.
 
 ## Files added or changed
 
+- docs/LITERATURE_REVIEW.md
+- docs/RESEARCH_GAP_AND_NOVELTY.md
 - `docs/BASELINE_AUDIT.md`
 - `research/daily_reports/DAY_01.md`
 - `research/DAILY_PROGRESS.md`
@@ -60,10 +63,10 @@ This audit separates reproducible external numerical validation from claims that
 ## Remaining work
 
 - Determine whether the source script and raw output for the 12-rule benchmark exist elsewhere in the user's archives or Git history.
-- Complete a structured literature review before choosing any algorithmic contribution.
+- Continue full-text and citation-chain review of fuzzy diagnosis and repair, including direct aggregation precedents; the current literature and gap documents are provisional.
 - Inspect exact inference, completeness, and conflict semantics in the existing implementation before designing comparisons.
 - Resolve the workflow activation constraint: GitHub scheduled workflows run from the default branch, so a schedule file on an unmerged research branch cannot execute.
 
 ## Next day's objective
 
-Review foundational and recent work on fuzzy rule-base verification, inconsistent-rule handling, conflict resolution, repair, diagnosis, mutation testing, and behavior-preserving validation. Document the source matrix and candidate research gaps before selecting a contribution.
+Continue the literature review with full-text experimental details and citation-chain searches for fuzzy diagnosis, localization, multi-objective repair, and behavior preservation. Reassess the provisional hypothesis before selecting a contribution.
