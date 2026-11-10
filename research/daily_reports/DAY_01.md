@@ -1,7 +1,7 @@
 # Day 01 — Repository audit and reproducibility
 
-**Date/time:** 2026-11-11, 00:32 IST (execution began 2026-11-10 19:02 UTC)  
-**Branch:** `research/novelty`  
+**Date/time:** 2026-11-11, 00:32 IST (execution began 2026-11-10 19:02 UTC)
+**Branch:** `research/novelty`
 **Commit at report generation:** `2f08ab5af3eccc63c6699e9d54d70ecec4a7f4cd` (baseline audit documentation)
 
 ## Objective
