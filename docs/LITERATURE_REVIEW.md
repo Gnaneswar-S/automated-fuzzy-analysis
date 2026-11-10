@@ -1,6 +1,6 @@
 # Literature Review: Fuzzy Rule-Base Verification, Diagnosis, and Repair
 
-**Search date:** 2026-11-11  
+**Search date:** 2026-11-11
 **Status:** Preliminary structured review; not an exhaustive systematic review.
 
 ## Scope and search method
