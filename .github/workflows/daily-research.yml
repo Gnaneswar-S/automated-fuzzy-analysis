@@ -1,0 +1,133 @@
+name: Daily research continuation
+
+on:
+  schedule:
+    # 18:00 India Standard Time (UTC+05:30).
+    - cron: '30 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-research
+  cancel-in-progress: false
+
+jobs:
+  research:
+    if: ${{ vars.RESEARCH_START_DATE != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check ten-day window
+        id: guard
+        env:
+          START_DATE: ${{ vars.RESEARCH_START_DATE }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python - <<'PY'
+          import datetime as dt
+          import os
+          import sys
+          start_text = os.environ["START_DATE"]
+          try:
+              start = dt.date.fromisoformat(start_text)
+          except ValueError:
+              print("RESEARCH_START_DATE must be YYYY-MM-DD", file=sys.stderr)
+              raise SystemExit(2)
+          today = dt.datetime.now(dt.timezone.utc).date()
+          day_index = (today - start).days
+          active = 0 <= day_index < 10
+          if os.environ["EVENT_NAME"] == "workflow_dispatch":
+              active = active
+          print(f"Start date: {start}; UTC date: {today}; run window day: {day_index + 1 if active else 'outside'}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"active={'true' if active else 'false'}\n")
+              out.write(f"day={day_index + 1 if active else 0}\n")
+          PY
+      - name: Check out research branch
+        if: steps.guard.outputs.active == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: research/novelty
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Set up Python
+        if: steps.guard.outputs.active == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install project dependencies
+        if: steps.guard.outputs.active == 'true'
+        run: python -m pip install -r requirements.txt
+      - name: Run baseline smoke checks
+        if: steps.guard.outputs.active == 'true'
+        run: |
+          python main.py
+          python core/experiments/compare_jfml_validation.py
+          python core/experiments/compare_jfml_boundary.py
+      - name: Run Codex research cycle
+        if: steps.guard.outputs.active == 'true'
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          permission-profile: ':workspace'
+          prompt: |
+            Continue the existing ten-day research program described in the repository instructions.
+            This is day ${{ steps.guard.outputs.day }} of the configured ten-day window. Read the
+            baseline audit, current daily progress, and relevant literature before proposing changes.
+            Work only on research/novelty. Do not alter the frozen release/tag or rewrite history.
+            Do not merge any pull request. Do not fabricate tests, metrics, data, references, or claims.
+            Run only checks that are relevant and available; report exact commands and outcomes.
+            Make a source change only when the evidence and current research plan justify it.
+            Always write/update research/daily_reports/DAY_${{ steps.guard.outputs.day }}.md and
+            research/DAILY_PROGRESS.md, including actual date, branch, commit, tests, failures, and
+            next work. Preserve existing benchmark outputs and note missing inputs honestly.
+      - name: Commit and push research changes
+        if: steps.guard.outputs.active == 'true'
+        env:
+          DAY: ${{ steps.guard.outputs.day }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No research changes were produced; see the workflow summary." >> "$GITHUB_STEP_SUMMARY"
+          else
+            git commit -m "research: daily cycle day ${DAY}"
+            git push origin HEAD:research/novelty
+          fi
+      - name: Create or refresh research pull request
+        if: steps.guard.outputs.active == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DAY: ${{ steps.guard.outputs.day }}
+        run: |
+          title="Ten-day fuzzy rule-base research program"
+          body="$(cat <<EOF
+          This pull request tracks the research/novelty work for the ten-day program.
+
+          Daily cycle completed or attempted: Day ${DAY}. See research/DAILY_PROGRESS.md and research/daily_reports/.
+
+          All changes require owner review. This workflow never merges the pull request.
+          EOF
+          )"
+          if [ "$(gh pr list --head research/novelty --base main --json number --jq 'length')" -gt 0 ]; then
+            gh pr edit research/novelty --base main --title "$title" --body "$body"
+          else
+            gh pr create --base main --head research/novelty --title "$title" --body "$body"
+          fi
+      - name: Workflow summary
+        if: always()
+        run: |
+          {
+            echo "## Daily research run"
+            echo "- Scheduled time: 18:00 IST (12:30 UTC)"
+            echo "- Configured start date: ${{ vars.RESEARCH_START_DATE }}"
+            echo "- Ten-day window day: ${{ steps.guard.outputs.day }}"
+            echo "- Guard active: ${{ steps.guard.outputs.active }}"
+            echo "- Branch: research/novelty"
+          } >> "$GITHUB_STEP_SUMMARY"
