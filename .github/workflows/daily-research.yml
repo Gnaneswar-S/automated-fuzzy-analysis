@@ -16,7 +16,9 @@ concurrency:
 jobs:
   research:
     if: ${{ vars.RESEARCH_START_DATE != '' }}
-    runs-on: ubuntu-latest
+    # Codex Action drop-sudo currently cannot restrict the D-Bus socket on Ubuntu 26.04.
+    # Pin 24.04 until the upstream compatibility issue is resolved.
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:
       contents: write

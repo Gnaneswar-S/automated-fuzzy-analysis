@@ -28,6 +28,8 @@ The workflow grants repository contents and pull-request write access to its job
 
 The Codex Action runs with its workspace permission profile. It can change checked-out files; review every generated diff and workflow log. Scheduled workflows execute trusted code from the default branch, so changes to the workflow itself require normal review.
 
+The research job is pinned to `ubuntu-24.04`. The Codex Action's `drop-sudo` setup currently fails to restrict `/run/dbus/system_bus_socket` on Ubuntu 26.04; see [openai/codex-action issue #188](https://github.com/openai/codex-action/issues/188). Revisit this pin after upstream confirms compatibility.
+
 ## Billing and run records
 
 GitHub-hosted runner usage is governed by the repository's plan and current GitHub Actions limits. OpenAI API usage is billed separately and depends on model, context, and output. Set an API budget/usage alert before the first run. The Actions run page retains the logs and summary; failed runs are visible there and through GitHub notifications configured for the repository. No separate external notification service is configured.
